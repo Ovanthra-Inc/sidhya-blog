@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXXXXX";
+  const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
 
   return (
     <html
@@ -40,8 +40,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         {/* Vercel Web Analytics */}
         <Analytics />
-        {/* Google Analytics 4 */}
-        {gaId && <GoogleAnalytics gaId={gaId} />}
+
+        {/* Google Analytics 4 via Native Next.js Script */}
+        {gaId && gaId !== "G-XXXXXXXXXX" && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaId}');
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );
