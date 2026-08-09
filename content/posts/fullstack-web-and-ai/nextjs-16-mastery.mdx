@@ -1,0 +1,44 @@
+---
+title: "Next.js 16 App Router & Turbopack Deep Dive"
+description: "Master server actions, streaming SSR, and Turbopack bundler optimizations in Next.js 16."
+slug: "nextjs-16-mastery"
+date: "2026-08-08"
+author: "Asutosh Sidhya"
+category: "Development"
+tags:
+  - Next.js
+  - React
+  - TypeScript
+cover: "/posts/nextjs-16-cover.png"
+featured: false
+draft: false
+---
+
+# Next.js 16 App Router & Turbopack Deep Dive
+
+Next.js 16 introduces groundbreaking build speed enhancements with Turbopack and fine-grained server component caching control.
+
+---
+
+## 1. Server Actions Data Mutation
+
+```typescript
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+export async function publishPostAction(formData: FormData) {
+  const title = formData.get("title") as string;
+  const content = formData.get("content") as string;
+
+  await savePostToDatabase({ title, content });
+  revalidatePath("/posts");
+}
+```
+
+---
+
+## 2. Summary
+
+> [!TIP]
+> Use Turbopack during development (`next dev --turbo`) for near-instantaneous HMR updates.

@@ -1,0 +1,62 @@
+---
+title: "Understanding Retrieval-Augmented Generation (RAG)"
+description: "A deep dive into chunking strategies, vector embeddings, and hybrid BM25 + dense retrieval for LLM applications."
+slug: "what-is-rag"
+date: "2026-08-08"
+author: "Asutosh Sidhya"
+category: "AI"
+tags:
+  - RAG
+  - VectorDB
+  - Python
+cover: "/posts/rag-cover.png"
+featured: false
+draft: false
+---
+
+# Understanding Retrieval-Augmented Generation (RAG)
+
+Retrieval-Augmented Generation (RAG) grounds Large Language Models on external domain knowledge.
+
+---
+
+## 1. The RAG Architecture Flow
+
+```flowchart
+[User Query] ──> [Vector Embedding Engine] ──> [Vector Search DB]
+                                                        │
+                                                        ▼
+[Final Answer] <── [LLM Generation Prompt] <── [Retrieved Chunks]
+```
+
+---
+
+## 2. Python Hybrid Search Implementation
+
+```python
+from qdrant_client import QdrantClient
+
+client = QdrantClient(host="localhost", port=6333)
+
+def search_documents(query_text: str, top_k: int = 5):
+    query_vector = embed_text(query_text)
+    results = client.search(
+        collection_name="tech_knowledge",
+        query_vector=query_vector,
+        limit=top_k
+    )
+    return [hit.payload for hit in results]
+```
+
+---
+
+## 3. Video Deep Dive
+
+youtube: 978939626
+
+---
+
+## 4. Key Takeaways
+
+> [!NOTE]
+> Hybrid retrieval combining BM25 keyword matching with dense OpenAI embeddings achieves up to 94% context precision.

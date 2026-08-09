@@ -1,0 +1,80 @@
+---
+title: "How I Built an Autonomous AI Agent with Next.js 16"
+description: "A comprehensive production guide to building goal-driven AI agents with tool calling, persistent memory, and resilient execution loops."
+slug: "how-i-built-an-ai-agent"
+date: "2026-08-09"
+author: "Asutosh Sidhya"
+category: "AI"
+tags:
+  - Next.js
+  - AI
+  - Agents
+  - TypeScript
+cover: "/posts/ai-agent-cover.png"
+featured: true
+draft: false
+---
+
+# How I Built an Autonomous AI Agent with Next.js 16
+
+Building autonomous AI agents requires moving beyond simple prompt chaining into deterministic decision loops, tool validation schemas, and state persistence.
+
+---
+
+## 1. The Agent Architecture & Execution Loop
+
+```flowchart
+[User Prompt] ──> [Goal Parser & Decomposition]
+                        │
+                        ▼
+                [Tool Selector & Argument Schema]
+                        │
+                        ▼
+                [Execution & State Verification]
+                        │
+                        ▼
+            [Goal Complete?] ── Yes ──> [Response Output]
+                    │
+                   No
+                    │
+                    ▼
+          [Reflect & Next Sub-task]
+```
+
+---
+
+## 2. Tool Execution Schema in TypeScript
+
+```typescript
+export interface AgentTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  execute: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+export const searchTool: AgentTool = {
+  name: "web_search",
+  description: "Searches public documentation and code repositories",
+  parameters: {
+    query: { type: "string", required: true }
+  },
+  execute: async ({ query }) => {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query as string)}`);
+    return response.json();
+  }
+};
+```
+
+---
+
+## 3. Video Walkthrough
+
+youtube: 978939626
+
+---
+
+## 4. Key Lessons Learned
+
+> [!NOTE]
+> Always set strict iteration bounds (e.g. `maxSteps = 10`) on agent loops to prevent infinite recursive tool execution.

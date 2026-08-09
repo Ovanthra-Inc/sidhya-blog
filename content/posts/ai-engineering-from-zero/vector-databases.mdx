@@ -1,0 +1,45 @@
+---
+title: "High-Performance Vector Databases: Pinecone vs Qdrant vs Pgvector"
+description: "Benchmark comparison of HNSW vs IVF indexing, latency metrics, and memory footprints for production vector search."
+slug: "vector-databases"
+date: "2026-08-08"
+author: "Asutosh Sidhya"
+category: "AI"
+tags:
+  - VectorDB
+  - Qdrant
+  - PostgreSQL
+cover: "/posts/vector-db-cover.png"
+featured: false
+draft: false
+---
+
+# High-Performance Vector Databases: Pinecone vs Qdrant vs Pgvector
+
+Choosing the right vector database is a fundamental architectural decision for production AI applications.
+
+---
+
+## 1. Indexing Tradeoffs: HNSW vs IVF
+
+```flowchart
+[Dense Vectors] ──> [HNSW: High Recall & Fast QPS (RAM Intensive)]
+                └── [IVF: Compressed Clusters (Disk Optimized)]
+```
+
+---
+
+## 2. Benchmark Comparison
+
+| Database | Index Type | Query Latency (p95) | Memory Overhead | Best For |
+| :--- | :--- | :--- | :--- | :--- |
+| **Pinecone** | Proprietary HNSW | 12ms | Managed Cloud | Turnkey SaaS apps |
+| **Qdrant** | Rust HNSW + Payload | 8ms | In-Memory / Mmap | High QPS Filtering |
+| **Pgvector** | HNSW / IVFFlat | 25ms | Shared Postgres RAM | Unified SQL + Vectors |
+
+---
+
+## 3. Recommendations
+
+> [!IMPORTANT]
+> If you already run PostgreSQL, start with Pgvector HNSW indexes before migrating to dedicated clusters.

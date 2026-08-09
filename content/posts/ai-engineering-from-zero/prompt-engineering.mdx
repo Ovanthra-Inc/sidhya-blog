@@ -1,0 +1,63 @@
+---
+title: "Advanced Prompt Engineering: Chain-of-Thought, ReAct, and Structured Output"
+description: "Learn proven prompt design patterns to force deterministic JSON output and complex reasoning from LLMs."
+slug: "prompt-engineering"
+date: "2026-08-07"
+author: "Asutosh Sidhya"
+category: "AI"
+tags:
+  - Prompts
+  - AI
+  - Python
+cover: "/posts/prompt-engineering-cover.png"
+featured: false
+draft: false
+---
+
+# Advanced Prompt Engineering: Chain-of-Thought, ReAct, and Structured Output
+
+Prompt engineering has evolved from trial-and-error text tweaking into a disciplined discipline for controlling language model execution behavior.
+
+---
+
+## 1. The ReAct (Reasoning + Acting) Prompt Pattern
+
+```flowchart
+[Input Question] ──> [Thought: Reason about requirements]
+                            │
+                            ▼
+                    [Action: Pick Tool & Parameters]
+                            │
+                            ▼
+                    [Observation: Tool Output]
+                            │
+                            ▼
+                  [Final Answer / Response]
+```
+
+---
+
+## 2. Enforcing Deterministic JSON Output
+
+```typescript
+const prompt = `
+Extract key entities from the input text. Return ONLY a valid JSON object.
+Do NOT include Markdown backticks or commentary.
+
+JSON Schema:
+{
+  "name": string,
+  "confidence": number,
+  "tags": string[]
+}
+
+Input Text: "Asutosh Sidhya is an AI engineer specializing in Next.js and LangGraph."
+`;
+```
+
+---
+
+## 3. Summary
+
+> [!TIP]
+> Always provide negative constraints ("Do NOT include headers") and explicit few-shot examples to maximize schema adherence.
