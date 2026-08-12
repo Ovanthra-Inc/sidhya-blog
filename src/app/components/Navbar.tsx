@@ -2,20 +2,29 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { usePathname } from "next/navigation";
+import SafeImage from "@/components/ui/SafeImage";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isActive = (path: string) => {
+    if (path === "/") return pathname === "/";
+    return pathname === path || pathname.startsWith(path + "/");
+  };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md rounded-b-[20px] md:rounded-b-[32px] -mb-16 shadow-sm px-4 md:px-16 py-3.5 flex flex-col transition-all mx-3 sm:mx-8 md:mx-16 lg:mx-20">
+    <nav className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md ${mobileMenuOpen ? "rounded-b-none" : "rounded-b-[20px] md:rounded-b-[32px]"} shadow-sm px-4 md:px-16 py-3.5 flex flex-col relative transition-all mx-3 sm:mx-8 md:mx-16 lg:mx-20 -mb-16`}>
       <div className="flex items-center justify-between">
-        {/* Logo: Calligraphy S icon + Brand Name SIDHYA */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        {/* Logo */}
+        <Link href="/" prefetch={true} className="flex items-center gap-2.5 group">
           <div className="relative w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Image
+            <SafeImage
               src="/logo-s.png"
               alt="SIDHYA Logo"
+              fallbackTitle="SIDHYA"
+              category="LOGOTYPE"
               fill
               sizes="36px"
               className="object-cover"
@@ -29,19 +38,39 @@ export default function Navbar() {
 
         {/* Desktop Navigation Links */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <Link href="/" className="hover:text-black transition-colors">
+          <Link
+            href="/"
+            prefetch={true}
+            className={`transition-colors ${isActive("/") ? "text-black font-semibold" : "hover:text-black"}`}
+          >
             Home
           </Link>
-          <Link href="/posts" className="hover:text-black transition-colors">
+          <Link
+            href="/posts"
+            prefetch={true}
+            className={`transition-colors ${isActive("/posts") ? "text-black font-semibold" : "hover:text-black"}`}
+          >
             Posts
           </Link>
-          <Link href="/playlists" className="hover:text-black transition-colors">
+          <Link
+            href="/playlists"
+            prefetch={true}
+            className={`transition-colors ${isActive("/playlists") ? "text-black font-semibold" : "hover:text-black"}`}
+          >
             Playlists
           </Link>
-          <Link href="/about" className="hover:text-black transition-colors">
+          <Link
+            href="/about"
+            prefetch={true}
+            className={`transition-colors ${isActive("/about") ? "text-black font-semibold" : "hover:text-black"}`}
+          >
             About
           </Link>
-          <Link href="/contact" className="hover:text-black transition-colors">
+          <Link
+            href="/contact"
+            prefetch={true}
+            className={`transition-colors ${isActive("/contact") ? "text-black font-semibold" : "hover:text-black"}`}
+          >
             Contact
           </Link>
         </div>
@@ -63,12 +92,15 @@ export default function Navbar() {
 
           <Link
             href="/about"
+            prefetch={true}
             className="relative w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden ring-2 ring-gray-200 hover:ring-blue-500 transition-all flex-shrink-0"
             title="Asutosh Sidhya"
           >
-            <Image
+            <SafeImage
               src="/avatar.jpg"
               alt="Asutosh Sidhya"
+              fallbackTitle="Asutosh Sidhya"
+              category="AUTHOR"
               fill
               sizes="36px"
               className="object-cover"
@@ -97,54 +129,67 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Menu with smooth animation */}
-      {mobileMenuOpen && (
-        <div className="md:hidden pt-4 mt-3 border-t border-gray-100 flex flex-col gap-3 text-sm font-medium text-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            Home
-          </Link>
-          <Link
-            href="/posts"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            All Posts
-          </Link>
-          <Link
-            href="/playlists"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            Playlists & Series
-          </Link>
-          <Link
-            href="/about"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            About Asutosh
-          </Link>
-          <Link
-            href="/contact"
-            onClick={() => setMobileMenuOpen(false)}
-            className="py-1.5 px-2 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            Contact
-          </Link>
-          <a
-            href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 text-center text-xs font-semibold text-white bg-black py-2.5 rounded-full hover:bg-gray-800 transition-colors"
-          >
-            Get in Touch (Gmail)
-          </a>
+      {/* Mobile Drawer Menu */}
+      <div
+        className={`md:hidden absolute top-full left-0 right-0 z-50 grid transition-all duration-300 ease-in-out ${
+          mobileMenuOpen
+            ? "grid-rows-[1fr] opacity-100 pointer-events-auto"
+            : "grid-rows-[0fr] opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="overflow-hidden bg-white/95 backdrop-blur-md rounded-b-[20px] md:rounded-b-[32px] shadow-lg border-t border-gray-100/80">
+          <div className="px-4 pb-5 pt-3 flex flex-col gap-3 text-sm font-medium text-gray-700 max-h-[calc(100vh-80px)] overflow-y-auto">
+            <Link
+              href="/"
+              prefetch={true}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 px-2 rounded-lg transition-colors ${isActive("/") ? "bg-gray-100 text-black font-semibold" : "hover:bg-gray-50"}`}
+            >
+              Home
+            </Link>
+            <Link
+              href="/posts"
+              prefetch={true}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 px-2 rounded-lg transition-colors ${isActive("/posts") ? "bg-gray-100 text-black font-semibold" : "hover:bg-gray-50"}`}
+            >
+              All Posts
+            </Link>
+            <Link
+              href="/playlists"
+              prefetch={true}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 px-2 rounded-lg transition-colors ${isActive("/playlists") ? "bg-gray-100 text-black font-semibold" : "hover:bg-gray-50"}`}
+            >
+              Playlists & Series
+            </Link>
+            <Link
+              href="/about"
+              prefetch={true}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 px-2 rounded-lg transition-colors ${isActive("/about") ? "bg-gray-100 text-black font-semibold" : "hover:bg-gray-50"}`}
+            >
+              About Asutosh
+            </Link>
+            <Link
+              href="/contact"
+              prefetch={true}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 px-2 rounded-lg transition-colors ${isActive("/contact") ? "bg-gray-100 text-black font-semibold" : "hover:bg-gray-50"}`}
+            >
+              Contact
+            </Link>
+            <a
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 text-center text-xs font-semibold text-white bg-black py-2.5 rounded-full hover:bg-gray-800 transition-colors"
+            >
+              Get in Touch (Gmail)
+            </a>
+          </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }

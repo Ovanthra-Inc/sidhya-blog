@@ -1,28 +1,30 @@
-import Image from "next/image";
 import Link from "next/link";
+import SafeImage from "@/components/ui/SafeImage";
 
 export default function HeroSection() {
   return (
-    <section className="relative bg-black text-white min-h-[480px] sm:min-h-[520px] overflow-hidden px-4 sm:px-8 md:px-16">
+    <section className="relative bg-black text-white min-h-[560px] sm:min-h-[640px] overflow-hidden px-4 sm:px-8 md:px-16">
       {/* Background container: left black, right sofa photo */}
       <div className="absolute inset-0 z-0 flex">
         {/* Left half dark background */}
         <div className="w-full lg:w-1/2 h-full bg-black" />
-        {/* Right half image */}
+        {/* Right half image - Taller height */}
         <div className="hidden lg:block relative w-1/2 h-full">
-          <Image
+          <SafeImage
             src="/hero.png"
             alt="Asutosh Sidhya AI Blog"
+            fallbackTitle="Autonomous AI Agents & Systems"
+            category="FEATURED"
             fill
-            sizes="50vw"
-            className="object-cover object-center opacity-90"
+            sizes="60vw"
+            className="object-cover object-center opacity-90 rounded-none"
             priority
           />
         </div>
       </div>
 
       {/* Hero Overlay Content */}
-      <div className="relative z-10 flex flex-col justify-between min-h-[480px] sm:min-h-[520px] px-1 sm:px-6 md:px-16 pt-20 sm:pt-24 pb-24 sm:pb-20">
+      <div className="relative z-10 flex flex-col justify-between min-h-[560px] sm:min-h-[640px] px-1 sm:px-6 md:px-16 pt-24 sm:pt-28 pb-28 sm:pb-24">
         {/* Top Text Content */}
         <div className="max-w-xl">
           <p className="text-[11px] sm:text-xs font-medium text-white mb-2.5">
@@ -39,7 +41,8 @@ export default function HeroSection() {
 
           <Link
             href="/posts/how-i-built-an-ai-agent"
-            className="inline-flex items-center gap-2 bg-white text-black text-xs font-bold px-5 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-gray-100 transition-all active:scale-95 shadow-md cursor-pointer"
+            prefetch={true}
+            className="inline-flex items-center gap-2 bg-white text-black text-xs font-bold px-5 sm:px-6 py-2.5 sm:py-3 rounded-none hover:bg-gray-100 transition-all active:scale-95 shadow-md cursor-pointer"
           >
             Read Full Post →
           </Link>
@@ -47,14 +50,16 @@ export default function HeroSection() {
 
         {/* Bottom Author & Next button */}
         <div className="flex items-center justify-between max-w-xl pt-4 border-t border-white/10 mt-6 sm:mt-8">
-          <Link href="/about" className="flex items-center gap-2.5 group">
-            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-white/20 group-hover:ring-blue-400 transition-all flex-shrink-0">
-              <Image
+          <Link href="/about" prefetch={true} className="flex items-center gap-2.5 group">
+            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-none overflow-hidden ring-1 ring-white/30 group-hover:ring-blue-400 transition-all flex-shrink-0">
+              <SafeImage
                 src="/avatar.jpg"
                 alt="Asutosh Sidhya"
+                fallbackTitle="Asutosh Sidhya"
+                category="AUTHOR"
                 fill
                 sizes="36px"
-                className="object-cover"
+                className="object-cover rounded-none"
               />
             </div>
             <div>
@@ -67,6 +72,7 @@ export default function HeroSection() {
 
           <Link
             href="/posts/vector-databases"
+            prefetch={true}
             className="text-xs font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-1"
           >
             Next Post →

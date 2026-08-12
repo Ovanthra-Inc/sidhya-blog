@@ -1,18 +1,32 @@
-import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import BackButton from "@/components/ui/BackButton";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = {
   title: "Privacy Policy | SIDHYA",
-  description: "Privacy policy for SIDHYA technical blog by Asutosh Sidhya.",
+  description: "Privacy policy and data protection transparency for SIDHYA technical blog by Asutosh Sidhya.",
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy | SIDHYA",
+    description: "Privacy policy and data protection transparency for SIDHYA technical blog by Asutosh Sidhya.",
+    url: "https://sidhya.studio/privacy",
+    type: "website",
+  },
 };
 
 export default function PrivacyPage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <Navbar />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Privacy Policy", url: "/privacy" },
+        ]}
+      />
 
-      <main className="px-6 md:px-20 pt-20 pb-16 max-w-4xl mx-auto w-full flex-1">
+      <main className="px-6 md:px-20 pt-10 pb-16 max-w-4xl mx-auto w-full flex-1">
         {/* Top Back Button */}
         <BackButton label="Previous" />
 
@@ -26,36 +40,22 @@ export default function PrivacyPage() {
 
         <div className="flex flex-col gap-6 text-gray-700 text-base leading-relaxed p-0">
           <p>
-            At <strong>SIDHYA</strong>, authored and maintained by <strong>Asutosh Sidhya</strong>, we prioritize the protection and confidentiality of your personal information. This Privacy Policy details how we collect, process, and safeguard data when you visit our technical engineering platform.
+            At <strong>SIDHYA Blog</strong> (https://sidhya.studio), operated by Asutosh Sidhya, privacy and data transparency are fundamental engineering principles.
           </p>
 
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            1. Information We Collect
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-4">1. Data We Collect</h2>
           <p>
-            We operate a privacy-first publishing platform. We do not mandate user registration or store tracking profiles. When you voluntarily subscribe to our engineering newsletter or reach out via email, we collect only your email address for direct communications.
+            We do not use invasive tracking cookies or collect personal identifiable information (PII) without your explicit consent. Standard privacy-focused web analytics (Vercel Web Analytics and Google Analytics) measure aggregated page view metrics.
           </p>
 
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            2. Analytics & Performance Cookies
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-4">2. Direct Contact & Newsletters</h2>
           <p>
-            We utilize lightweight, privacy-focused analytics to monitor page performance, response times, and aggregated visitor metrics (such as device types and referring domains). No cross-site advertising cookies or personal tracking scripts are installed.
+            When contacting Asutosh Sidhya via email or newsletter subscription, your email address is used solely to respond to your technical inquiry or send technical engineering breakdowns.
           </p>
 
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            3. Data Security & Direct Inquiries
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-4">3. External Links</h2>
           <p>
-            Your email data is never shared, sold, or distributed to third-party data brokers. For any privacy requests or data removal inquiries, please email Asutosh Sidhya directly at{" "}
-            <a
-              href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 font-semibold underline hover:text-blue-800"
-            >
-              sidhyaasutosh@gmail.com
-            </a>.
+            Articles may contain outgoing links to open-source GitHub repositories, documentation sites, and third-party tools. We are not responsible for the privacy practices of external websites.
           </p>
         </div>
       </main>

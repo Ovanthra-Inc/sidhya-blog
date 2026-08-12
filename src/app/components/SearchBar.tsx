@@ -16,6 +16,22 @@ export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts listener: Cmd+K / Ctrl+K to focus, Escape to dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      } else if (e.key === "Escape") {
+        setIsOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Mock search suggestions list
   const searchIndex: SearchResult[] = [
@@ -67,30 +83,34 @@ export default function SearchBar() {
     <div ref={dropdownRef} className="relative z-20 -mt-18 px-3 sm:px-8 md:px-16 lg:px-20">
       <form
         onSubmit={handleSearch}
-        className="bg-white rounded-t-[24px] md:rounded-t-[32px] px-4 sm:px-6 md:px-16 py-4 sm:py-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4"
+        className="bg-white rounded-t-[24px] md:rounded-t-[32px] px-4 sm:px-6 md:px-16 py-4 sm:py-5 flex items-center justify-center gap-3 sm:gap-4"
       >
-        <h2 className="text-lg sm:text-xl font-bold text-black tracking-tight whitespace-nowrap">
-          Blog SIDHYA
-        </h2>
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto relative">
-          <div className="flex items-center gap-2 border border-gray-200 rounded-full px-3.5 py-2 bg-white flex-1 sm:w-[320px] focus-within:border-blue-500 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full max-w-3xl relative">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-2.5 bg-white flex-1 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-xs">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
               <circle cx="11" cy="11" r="8" stroke="#9CA3AF" strokeWidth="2" />
               <path d="M21 21l-4.35-4.35" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
             </svg>
             <input
+              ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => query.trim().length > 0 && setIsOpen(true)}
-              placeholder="Search AI agents, RAG, Next.js..."
-              className="w-full text-xs text-gray-700 outline-none bg-transparent placeholder:text-gray-400 min-w-0"
+              placeholder="Search AI agents, RAG benchmarks, Next.js 16..."
+              className="w-full text-xs sm:text-sm text-gray-700 bg-transparent placeholder:text-gray-400 min-w-0 border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none"
             />
+            {!query && (
+              <kbd className="hidden sm:inline-block text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 select-none">
+                ⌘K
+              </kbd>
+            )}
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="text-xs text-gray-400 hover:text-gray-600 px-1"
+                className="text-xs text-gray-400 hover:text-gray-600 px-1 cursor-pointer"
+                aria-label="Clear search"
               >
                 ✕
               </button>
@@ -99,7 +119,7 @@ export default function SearchBar() {
 
           <button
             type="submit"
-            className="bg-black text-white text-xs font-semibold px-4 sm:px-6 py-2.5 rounded-full hover:bg-gray-800 transition-colors cursor-pointer flex-shrink-0"
+            className="bg-black text-white text-xs font-bold px-5 sm:px-7 py-2.5 sm:py-3 rounded-full hover:bg-gray-800 transition-colors cursor-pointer flex-shrink-0 shadow-xs"
           >
             Search
           </button>
@@ -108,7 +128,7 @@ export default function SearchBar() {
 
       {/* Instant Search Live Suggestions Dropdown */}
       {isOpen && (
-        <div className="absolute left-3 right-3 sm:left-auto sm:right-8 md:right-16 top-full mt-2 sm:w-[360px] bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50 p-2">
+        <div className="absolute left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 top-full mt-2 sm:w-[420px] bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50 p-2">
           <div className="text-[10px] font-bold text-gray-400 px-3 py-1.5 uppercase tracking-wider">
             Matching Articles ({results.length})
           </div>

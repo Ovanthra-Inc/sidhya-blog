@@ -1,107 +1,101 @@
-import Image from "next/image";
-import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import BackButton from "@/components/ui/BackButton";
+import SafeImage from "@/components/ui/SafeImage";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = {
   title: "About Asutosh Sidhya | SIDHYA",
-  description: "Learn more about Asutosh Sidhya, AI engineer and creator of SIDHYA blog.",
+  description: "Learn more about Asutosh Sidhya, AI engineer, creator of SIDHYA blog, and fullstack developer.",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About Asutosh Sidhya | SIDHYA",
+    description: "Learn more about Asutosh Sidhya, AI engineer, creator of SIDHYA blog, and fullstack developer.",
+    url: "https://sidhya.studio/about",
+    type: "profile",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Asutosh Sidhya | SIDHYA",
+    description: "Learn more about Asutosh Sidhya, AI engineer, creator of SIDHYA blog, and fullstack developer.",
+  },
 };
 
 export default function AboutPage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <Navbar />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "About", url: "/about" },
+        ]}
+      />
 
-      <main className="px-6 md:px-20 pt-20 pb-8 max-w-[1440px] mx-auto w-full flex-1">
+      <main className="px-6 md:px-20 pt-24 md:pt-28 pb-8 max-w-[1440px] mx-auto w-full flex-1">
         {/* Top Back Button */}
         <BackButton label="Previous" />
 
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-12 items-center md:items-start mb-16">
           {/* Avatar Picture */}
           <div className="relative w-48 h-48 md:w-64 md:h-64 rounded-3xl overflow-hidden shadow-xl ring-4 ring-gray-100 flex-shrink-0">
-            <Image
+            <SafeImage
               src="/avatar.jpg"
               alt="Asutosh Sidhya"
+              fallbackTitle="Asutosh Sidhya"
+              category="AUTHOR"
               fill
-              sizes="(max-width: 768px) 192px, 256px"
+              sizes="256px"
               className="object-cover"
               priority
             />
           </div>
 
-          {/* Bio Content */}
-          <div className="flex-1">
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2 block">
-              AUTHOR & CREATOR
+          <div className="flex-1 flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-600 mb-1">
+              FOUNDER & AUTHOR
             </span>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
               Asutosh Sidhya
             </h1>
-
-            <p className="text-gray-600 text-lg leading-relaxed mb-6">
-              Hi! I&apos;m Asutosh Sidhya — a software engineer passionate about building high-performance web applications, AI agents, RAG systems, and production-grade developer tools.
+            <p className="text-base text-gray-600 leading-relaxed mb-6">
+              AI Engineer & Software Architect focused on high-performance vector databases, autonomous LLM agent runtimes, and Next.js 16 engineering.
             </p>
 
-            <p className="text-gray-600 text-base leading-relaxed mb-8">
-              Through **SIDHYA**, I share in-depth, practical guides on AI engineering, Next.js architecture, vector databases, and real-world system design — helping engineers transition from theory to production.
-            </p>
-
-            {/* Social & Contact CTAs */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3">
               <a
                 href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
                 target="_blank"
-                rel="noreferrer"
-                className="bg-black text-white hover:bg-gray-800 font-semibold px-6 py-3 rounded-full text-xs transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                rel="noopener noreferrer"
+                className="bg-black text-white text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-gray-800 transition-colors"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Send Email (Gmail)
+                Contact Me (Gmail)
               </a>
-
               <a
-                href="https://github.com/sidhyaashu"
+                href="https://github.com"
                 target="_blank"
-                rel="noreferrer"
-                className="bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-5 py-3 rounded-full text-xs transition-colors flex items-center gap-2"
+                rel="noopener noreferrer"
+                className="bg-gray-100 text-gray-800 text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors"
               >
-                GitHub Profile ↗
-              </a>
-
-              <a
-                href="https://www.linkedin.com/in/asutoshsidhya8170/"
-                target="_blank"
-                rel="noreferrer"
-                className="bg-[#0A66C2] text-white hover:opacity-90 font-semibold px-5 py-3 rounded-full text-xs transition-colors flex items-center gap-2"
-              >
-                LinkedIn Profile ↗
+                GitHub Profile
               </a>
             </div>
           </div>
         </div>
 
-        {/* Skills & Stack */}
-        <div className="max-w-4xl mx-auto pt-10 border-t border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Core Tech Stack & Expertise</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              "Next.js 16 (App Router)",
-              "TypeScript & React 19",
-              "AI Agent Orchestration",
-              "RAG & Vector Search",
-              "Python & Fast API",
-              "Tailwind CSS & UI Systems",
-              "Shiki & MDX Architecture",
-              "Vercel & Cloud Deployment",
-            ].map((skill) => (
-              <div key={skill} className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs font-semibold text-gray-800 text-center">
-                {skill}
-              </div>
-            ))}
-          </div>
+        {/* Bio Sections */}
+        <div className="max-w-3xl mx-auto flex flex-col gap-8 text-gray-700 text-base leading-relaxed border-t border-gray-100 pt-10">
+          <h2 className="text-2xl font-bold text-gray-900">Why SIDHYA Blog?</h2>
+          <p>
+            SIDHYA Blog was built to bridge the gap between high-level AI marketing announcements and production-grade software engineering reality. Every article, benchmark, and architectural diagram is crafted with zero conversational fluff and 100% production-ready code.
+          </p>
+
+          <h2 className="text-2xl font-bold text-gray-900">Core Expertise</h2>
+          <ul className="list-disc pl-6 space-y-2">
+            <li><strong>Autonomous AI Agents:</strong> LangGraph, Pydantic AI, tool schema validation, state machines, and multi-agent coordination.</li>
+            <li><strong>Vector Databases & RAG:</strong> LanceDB, Pinecone, Qdrant, Pgvector, eBPF kernel telemetry, and hybrid semantic retrieval.</li>
+            <li><strong>Modern Web Architecture:</strong> Next.js 16 App Router, Turbopack, React 19, Tailwind v4, and Vercel edge infrastructure.</li>
+          </ul>
         </div>
       </main>
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { PlaylistContext } from "@/lib/playlists";
@@ -9,6 +11,12 @@ interface PlaylistSidebarProps {
 
 export default function PlaylistSidebar({ context, currentSlug }: PlaylistSidebarProps) {
   const { playlist, currentIndex, totalPosts, prevPost, nextPost } = context;
+
+  const handleSmoothScroll = () => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 sticky top-24 shadow-xs">
@@ -52,7 +60,10 @@ export default function PlaylistSidebar({ context, currentSlug }: PlaylistSideba
                 <Link
                   key={post.slug}
                   href={`/posts/${post.slug}`}
-                  className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs transition-all ${
+                  prefetch={true}
+                  scroll={false}
+                  onClick={handleSmoothScroll}
+                  className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
                     isCurrent
                       ? "bg-blue-600 text-white font-semibold shadow-xs"
                       : isCompleted
@@ -81,6 +92,9 @@ export default function PlaylistSidebar({ context, currentSlug }: PlaylistSideba
         {prevPost ? (
           <Link
             href={`/posts/${prevPost.slug}`}
+            prefetch={true}
+            scroll={false}
+            onClick={handleSmoothScroll}
             className="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-medium transition-colors cursor-pointer"
           >
             ← Previous Topic
@@ -92,6 +106,9 @@ export default function PlaylistSidebar({ context, currentSlug }: PlaylistSideba
         {nextPost ? (
           <Link
             href={`/posts/${nextPost.slug}`}
+            prefetch={true}
+            scroll={false}
+            onClick={handleSmoothScroll}
             className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-semibold transition-colors cursor-pointer"
           >
             Next Topic →

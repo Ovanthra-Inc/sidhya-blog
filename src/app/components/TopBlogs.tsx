@@ -1,195 +1,281 @@
-import Image from "next/image";
 import Link from "next/link";
+import SafeImage from "@/components/ui/SafeImage";
 import { getAllPosts } from "@/lib/posts";
 
 export default function TopBlogs() {
   const posts = getAllPosts();
-  const featuredPost = posts[0] || {
-    title: "How I Built an Autonomous AI Agent with Next.js 16",
-    description: "A comprehensive production guide to building goal-driven AI agents with tool calling.",
-    slug: "how-i-built-an-ai-agent",
-    cover: "/posts/ai-agent-cover.png",
-    readTime: "8 min read",
-    author: "Asutosh Sidhya",
-  };
+  const topPosts = posts.slice(0, 5);
 
-  const secondaryPost1 = posts[1] || posts[0];
-  const secondaryPost2 = posts[2] || posts[0];
-  const secondaryPost3 = posts[3] || posts[0];
+  const post1 = topPosts[0];
+  const post2 = topPosts[1] || topPosts[0];
+  const post3 = topPosts[2] || topPosts[0];
+  const post4 = topPosts[3] || topPosts[0];
+  const post5 = topPosts[4] || topPosts[0];
 
   return (
-    <section className="px-3 sm:px-8 md:px-16 lg:px-20 py-8 bg-white">
-      <h2 className="text-xl sm:text-2xl font-bold text-black mb-5 tracking-tight px-1">Top Blogs</h2>
+    <section className="px-4 sm:px-8 md:px-16 lg:px-20 pt-4 pb-12 bg-white">
+      {/* Centered 2-Layer Section Header */}
+      <div className="text-center max-w-2xl mx-auto mb-10">
+        <span className="text-xs font-bold text-blue-600 uppercase tracking-widest block mb-1.5">
+          FEATURED ARTICLES
+        </span>
+        <h2 className="text-2xl sm:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+          Top Engineering Articles
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-500 leading-relaxed max-w-xl mx-auto">
+          Hand-picked production deep dives covering autonomous AI agent architectures, vector search benchmarks, and cloud-native infrastructure.
+        </p>
+      </div>
 
-      {/* Outer: two equal columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      {/* 5 Square Cards Mosaic Layout matching reference screenshot (No curve/rounded corners) */}
+      <div className="flex flex-col gap-4">
 
-        {/* ── LEFT HALF: single large featured blog ── */}
-        <Link
-          href={`/posts/${featuredPost.slug}`}
-          className="group flex flex-col p-3.5 sm:p-5 rounded-2xl border border-transparent hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer"
-        >
-          {/* Left Featured Image: 320px on mobile, 440px on desktop */}
-          <div className="relative w-full rounded-2xl overflow-hidden bg-gray-100 h-[260px] sm:h-[360px] lg:h-[440px]">
-            <Image
-              src={featuredPost.cover}
-              alt={featuredPost.title}
+        {/* ── TOP ROW: 3 Square Vertical Cards Side-by-Side ── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* CARD 1: Sharp Square Monochromatic Image Card */}
+          <Link
+            href={`/posts/${post1.slug}`}
+            prefetch={true}
+            className="group relative flex flex-col justify-between h-[420px] rounded-none overflow-hidden p-6 bg-black text-white shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-900"
+          >
+            <SafeImage
+              src={post1.cover}
+              alt={post1.title}
+              fallbackTitle={post1.title}
+              category={post1.category}
               fill
-              sizes="(max-width: 780px) 100vw, 500px"
-              className="object-cover group-hover:scale-102 transition-transform duration-300"
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover opacity-50 group-hover:scale-105 transition-transform duration-500 rounded-none"
               priority
             />
-          </div>
-          {/* Text below the image */}
-          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mt-4">
-            {featuredPost.category || "AI"} &nbsp;•&nbsp; {featuredPost.readTime}
-          </p>
-          <h3 className="text-lg sm:text-xl font-bold text-black leading-snug mt-1 group-hover:text-blue-600 group-hover:underline transition-colors">
-            {featuredPost.title}
-          </h3>
-          <p className="text-xs text-gray-500 leading-relaxed mt-1.5 line-clamp-2">
-            {featuredPost.description}
-          </p>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-0" />
 
-          <div className="flex items-center gap-2.5 mt-3 pt-1">
-            <div className="relative w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-              <Image
-                src="/avatar.jpg"
-                alt="Asutosh Sidhya"
-                fill
-                sizes="28px"
-                className="object-cover"
-              />
+            <div className="relative z-10">
+              <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-none mb-3">
+                {post1.category} • {post1.readTime}
+              </span>
             </div>
-            <div>
-              <p className="text-[9px] text-gray-400">Written by</p>
-              <p className="text-xs font-semibold text-black">{featuredPost.author}</p>
-            </div>
-          </div>
-        </Link>
 
-        {/* ── RIGHT HALF: 3 side post cards ── */}
-        <div className="flex flex-col gap-4">
-
-          {/* CARD 1 */}
-          <Link
-            href={`/posts/${secondaryPost1.slug}`}
-            className="group flex flex-col sm:flex-row gap-4 items-start p-3.5 sm:p-4 rounded-2xl border border-transparent hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer"
-          >
-            <div className="relative rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 w-full sm:w-[130px] h-[160px] sm:h-[100px]">
-              <Image
-                src={secondaryPost1.cover}
-                alt={secondaryPost1.title}
-                fill
-                sizes="130px"
-                className="object-cover group-hover:scale-102 transition-transform duration-300"
-              />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                {secondaryPost1.category || "AI"} &nbsp;•&nbsp; {secondaryPost1.readTime}
-              </p>
-              <h3 className="text-sm font-bold text-black leading-snug mt-0.5 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
-                {secondaryPost1.title}
+            <div className="relative z-10">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-tight group-hover:text-blue-300 transition-colors line-clamp-3 mb-3">
+                {post1.title}
               </h3>
-              <p className="text-xs text-gray-500 leading-relaxed mt-0.5 line-clamp-2 sm:line-clamp-1">
-                {secondaryPost1.description}
+              <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed mb-4">
+                {post1.description}
               </p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                  <Image
+              <div className="flex items-center gap-2 pt-3 border-t border-white/20 text-xs">
+                <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                  <SafeImage
                     src="/avatar.jpg"
-                    alt="Asutosh Sidhya"
+                    alt={post1.author}
+                    fallbackTitle={post1.author}
+                    category="AUTHOR"
                     fill
-                    sizes="20px"
-                    className="object-cover"
+                    sizes="24px"
+                    className="object-cover rounded-none"
                   />
                 </div>
-                <p className="text-[11px] font-semibold text-gray-800">{secondaryPost1.author}</p>
+                <span className="font-semibold text-white">{post1.author}</span>
               </div>
             </div>
           </Link>
 
-          {/* CARD 2 */}
+          {/* CARD 2: Sharp Square Vibrant Red/Orange Gradient Banner */}
           <Link
-            href={`/posts/${secondaryPost2.slug}`}
-            className="group flex flex-col sm:flex-row gap-4 items-start p-3.5 sm:p-4 rounded-2xl border border-transparent hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer"
+            href={`/posts/${post2.slug}`}
+            prefetch={true}
+            className="group relative flex flex-col justify-between h-[420px] rounded-none overflow-hidden p-6 bg-gradient-to-br from-red-600 via-rose-600 to-orange-600 text-white shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer"
           >
-            <div className="relative rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 w-full sm:w-[130px] h-[160px] sm:h-[100px]">
-              <Image
-                src={secondaryPost2.cover}
-                alt={secondaryPost2.title}
-                fill
-                sizes="130px"
-                className="object-cover group-hover:scale-102 transition-transform duration-300"
-              />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between text-xs mb-4">
+                <span className="px-3 py-1 bg-black/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-none">
+                  {post2.category}
+                </span>
+                <span className="text-xs font-semibold text-rose-100">{post2.readTime}</span>
+              </div>
             </div>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                {secondaryPost2.category || "AI"} &nbsp;•&nbsp; {secondaryPost2.readTime}
-              </p>
-              <h3 className="text-sm font-bold text-black leading-snug mt-0.5 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
-                {secondaryPost2.title}
+
+            <div className="relative z-10 my-auto">
+              <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight uppercase tracking-tight group-hover:translate-x-1 transition-transform mb-3">
+                {post2.title}
               </h3>
-              <p className="text-xs text-gray-500 leading-relaxed mt-0.5 line-clamp-2 sm:line-clamp-1">
-                {secondaryPost2.description}
+              <p className="text-xs text-rose-100 line-clamp-3 leading-relaxed font-medium">
+                {post2.description}
               </p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                  <Image
+            </div>
+
+            <div className="relative z-10 flex items-center justify-between pt-4 border-t border-white/20 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                  <SafeImage
                     src="/avatar.jpg"
-                    alt="Asutosh Sidhya"
+                    alt={post2.author}
+                    fallbackTitle={post2.author}
+                    category="AUTHOR"
                     fill
-                    sizes="20px"
-                    className="object-cover"
+                    sizes="24px"
+                    className="object-cover rounded-none"
                   />
                 </div>
-                <p className="text-[11px] font-semibold text-gray-800">{secondaryPost2.author}</p>
+                <span className="font-bold text-white">{post2.author}</span>
               </div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-200">Read Article →</span>
             </div>
           </Link>
 
-          {/* CARD 3 */}
+          {/* CARD 3: Sharp Square High-Contrast Image Card */}
           <Link
-            href={`/posts/${secondaryPost3.slug}`}
-            className="group flex flex-col sm:flex-row gap-4 items-start p-3.5 sm:p-4 rounded-2xl border border-transparent hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer"
+            href={`/posts/${post3.slug}`}
+            prefetch={true}
+            className="group relative flex flex-col justify-between h-[420px] rounded-none overflow-hidden p-6 bg-gray-950 text-white shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-900"
           >
-            <div className="relative rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 w-full sm:w-[130px] h-[160px] sm:h-[100px]">
-              <Image
-                src={secondaryPost3.cover}
-                alt={secondaryPost3.title}
-                fill
-                sizes="130px"
-                className="object-cover group-hover:scale-102 transition-transform duration-300"
-              />
+            <SafeImage
+              src={post3.cover}
+              alt={post3.title}
+              fallbackTitle={post3.title}
+              category={post3.category}
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover opacity-60 group-hover:scale-105 transition-transform duration-500 rounded-none"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/50 to-transparent z-0" />
+
+            <div className="relative z-10">
+              <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-none">
+                {post3.category} • {post3.readTime}
+              </span>
             </div>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                {secondaryPost3.category || "AI"} &nbsp;•&nbsp; {secondaryPost3.readTime}
-              </p>
-              <h3 className="text-sm font-bold text-black leading-snug mt-0.5 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
-                {secondaryPost3.title}
+
+            <div className="relative z-10">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-tight group-hover:text-blue-300 transition-colors line-clamp-3 mb-3">
+                {post3.title}
               </h3>
-              <p className="text-xs text-gray-500 leading-relaxed mt-0.5 line-clamp-2 sm:line-clamp-1">
-                {secondaryPost3.description}
+              <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed mb-4">
+                {post3.description}
               </p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                  <Image
+              <div className="flex items-center gap-2 pt-3 border-t border-white/20 text-xs">
+                <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                  <SafeImage
                     src="/avatar.jpg"
-                    alt="Asutosh Sidhya"
+                    alt={post3.author}
+                    fallbackTitle={post3.author}
+                    category="AUTHOR"
                     fill
-                    sizes="20px"
-                    className="object-cover"
+                    sizes="24px"
+                    className="object-cover rounded-none"
                   />
                 </div>
-                <p className="text-[11px] font-semibold text-gray-800">{secondaryPost3.author}</p>
+                <span className="font-semibold text-white">{post3.author}</span>
               </div>
             </div>
           </Link>
 
         </div>
-        {/* ── end RIGHT HALF ── */}
+
+        {/* ── BOTTOM ROW: 2 Sharp Square Wide Landscape Cards Side-by-Side ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+          {/* CARD 4: Wide Left Landscape Card (7 columns) - Sharp Square */}
+          <Link
+            href={`/posts/${post4.slug}`}
+            prefetch={true}
+            className="lg:col-span-7 group relative flex flex-col md:flex-row items-center justify-between min-h-[260px] rounded-none overflow-hidden p-6 sm:p-8 bg-black text-white shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer gap-6 border border-gray-900"
+          >
+            <div className="flex-1 min-w-0 z-10 flex flex-col justify-between h-full">
+              <div>
+                <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-300 text-[10px] font-bold uppercase tracking-wider rounded-none mb-3 border border-blue-500/30">
+                  {post4.category} • {post4.readTime}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight group-hover:text-blue-400 transition-colors line-clamp-2 mb-2">
+                  {post4.title}
+                </h3>
+                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                  {post4.description}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-4 border-t border-white/10 text-xs mt-4">
+                <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                  <SafeImage
+                    src="/avatar.jpg"
+                    alt={post4.author}
+                    fallbackTitle={post4.author}
+                    category="AUTHOR"
+                    fill
+                    sizes="24px"
+                    className="object-cover rounded-none"
+                  />
+                </div>
+                <span className="font-semibold text-white">{post4.author}</span>
+              </div>
+            </div>
+
+            <div className="relative w-full md:w-[220px] h-48 md:h-full rounded-none overflow-hidden flex-shrink-0 bg-gray-900">
+              <SafeImage
+                src={post4.cover}
+                alt={post4.title}
+                fallbackTitle={post4.title}
+                category={post4.category}
+                fill
+                sizes="220px"
+                className="object-cover group-hover:scale-105 transition-transform duration-500 rounded-none"
+              />
+            </div>
+          </Link>
+
+          {/* CARD 5: Wide Right Landscape Card (5 columns) - Sharp Square */}
+          <Link
+            href={`/posts/${post5.slug}`}
+            prefetch={true}
+            className="lg:col-span-5 group relative flex flex-col justify-between min-h-[260px] rounded-none overflow-hidden p-6 sm:p-8 bg-gradient-to-br from-neutral-900 via-stone-900 to-rose-950 text-white shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-900"
+          >
+            <SafeImage
+              src={post5.cover}
+              alt={post5.title}
+              fallbackTitle={post5.title}
+              category={post5.category}
+              fill
+              sizes="(max-width: 768px) 100vw, 40vw"
+              className="object-cover opacity-40 group-hover:scale-105 transition-transform duration-500 rounded-none"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-0" />
+
+            <div className="relative z-10">
+              <span className="inline-block px-3 py-1 bg-rose-500/20 text-rose-300 text-[10px] font-bold uppercase tracking-wider rounded-none mb-2 border border-rose-500/30">
+                {post5.category} • {post5.readTime}
+              </span>
+            </div>
+
+            <div className="relative z-10 my-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight group-hover:text-rose-300 transition-colors line-clamp-2 mb-2">
+                {post5.title}
+              </h3>
+              <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed">
+                {post5.description}
+              </p>
+            </div>
+
+            <div className="relative z-10 flex items-center justify-between pt-3 border-t border-white/20 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="relative w-5 h-5 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                  <SafeImage
+                    src="/avatar.jpg"
+                    alt={post5.author}
+                    fallbackTitle={post5.author}
+                    category="AUTHOR"
+                    fill
+                    sizes="20px"
+                    className="object-cover rounded-none"
+                  />
+                </div>
+                <span className="font-semibold text-white text-[11px]">{post5.author}</span>
+              </div>
+              <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider">Explore →</span>
+            </div>
+          </Link>
+
+        </div>
 
       </div>
     </section>

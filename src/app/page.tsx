@@ -1,4 +1,3 @@
-import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
 import SearchBar from "./components/SearchBar";
 import TopBlogs from "./components/TopBlogs";
@@ -12,19 +11,13 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-100/60">
-      <div className=" mx-auto w-full flex flex-col flex-1">
-        {/* Top Navbar with rounded bottom corners */}
-        <Navbar />
-
+      <div className="mx-auto w-full flex flex-col flex-1">
         {/* Hero Section */}
-        <div>
-          <HeroSection />
-          {/* Search Bar floats directly on bottom of Hero section with zero gap */}
-          <SearchBar />
-        </div>
+        <HeroSection />
 
-        {/* Main Content Area */}
-        <main className="flex flex-col bg-white rounded-b-3xl shadow-xs">
+        {/* Main Content Area: SearchBar & TopBlogs seamlessly integrated with zero black gap */}
+        <main className="flex flex-col bg-white rounded-b-3xl shadow-xs relative z-20">
+          <SearchBar />
           <TopBlogs />
           <div className="border-t border-gray-100 my-4" />
           <LatestBlogs posts={posts} />

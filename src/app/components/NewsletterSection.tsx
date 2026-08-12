@@ -15,7 +15,7 @@ export default function NewsletterSection() {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 text-xs text-gray-800 outline-none bg-transparent placeholder:text-gray-400"
+                className="flex-1 text-xs text-gray-800 bg-transparent placeholder:text-gray-400 border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none"
               />
             </div>
             <a

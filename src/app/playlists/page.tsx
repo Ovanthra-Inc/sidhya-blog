@@ -1,13 +1,27 @@
 import Link from "next/link";
-import Image from "next/image";
-import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import BackButton from "@/components/ui/BackButton";
+import SafeImage from "@/components/ui/SafeImage";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { getAllPlaylists } from "@/lib/playlists";
 
 export const metadata = {
-  title: "Playlists | SIDHYA",
-  description: "Curated series of technical posts organized step-by-step.",
+  title: "Playlists & Series | SIDHYA",
+  description: "Structured step-by-step masterclass series covering AI engineering, vector databases, and Next.js 16.",
+  alternates: {
+    canonical: "/playlists",
+  },
+  openGraph: {
+    title: "Playlists & Series | SIDHYA",
+    description: "Structured step-by-step masterclass series covering AI engineering, vector databases, and Next.js 16.",
+    url: "https://sidhya.studio/playlists",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Playlists & Series | SIDHYA",
+    description: "Structured step-by-step masterclass series covering AI engineering, vector databases, and Next.js 16.",
+  },
 };
 
 export default function PlaylistsPage() {
@@ -15,9 +29,14 @@ export default function PlaylistsPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <Navbar />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Playlists", url: "/playlists" },
+        ]}
+      />
 
-      <main className="px-6 md:px-20 pt-20 pb-12 max-w-[1440px] mx-auto w-full flex-1">
+      <main className="px-6 md:px-20 pt-24 md:pt-28 pb-16 max-w-[1440px] mx-auto w-full flex-1">
         {/* Top Back Button */}
         <BackButton label="Previous" />
 
@@ -29,45 +48,49 @@ export default function PlaylistsPage() {
           </p>
         </div>
 
-        {/* Playlists Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Playlists Grid matching exact Post Card style (Border-0, Sharp Square, Taller Image) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {playlists.map((playlist) => (
             <Link
               key={playlist.slug}
               href={`/playlists/${playlist.slug}`}
-              className="group flex flex-col md:flex-row gap-6 p-5 rounded-3xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer bg-white"
+              prefetch={true}
+              className="group flex flex-col rounded-none border-0 transition-all duration-200 cursor-pointer bg-white"
             >
-              {/* Taller Image Height: 215px */}
-              <div className="relative w-full md:w-60 h-52 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
-                <Image
+              {/* Taller Image Container (h-[340px] sharp square) */}
+              <div className="relative w-full h-[340px] rounded-none overflow-hidden mb-4 bg-gray-100">
+                <SafeImage
                   src={playlist.cover}
                   alt={playlist.title}
+                  fallbackTitle={playlist.title}
+                  category={playlist.category}
                   fill
-                  sizes="260px"
-                  className="object-cover group-hover:scale-103 transition-transform duration-300"
+                  sizes="(max-width: 780px) 100vw, 420px"
+                  className="object-cover group-hover:scale-103 transition-transform duration-300 rounded-none"
                 />
               </div>
 
-              <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-                <div>
-                  <div className="flex items-center gap-2 text-xs text-blue-600 font-semibold uppercase tracking-wider mb-1">
-                    <span>{playlist.category}</span>
-                    <span>•</span>
-                    <span>{playlist.posts.length} Posts</span>
-                  </div>
+              {/* Category Badge & Post Count */}
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                <span className="font-bold text-blue-600 uppercase tracking-wider text-[11px]">
+                  {playlist.category} PLAYLIST
+                </span>
+                <span className="font-semibold text-gray-700 text-xs">{playlist.posts.length} Lessons</span>
+              </div>
 
-                  <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">
-                    {playlist.title}
-                  </h2>
+              {/* Title */}
+              <h2 className="text-xl font-bold text-gray-900 leading-snug mb-2 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
+                {playlist.title}
+              </h2>
 
-                  <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
-                    {playlist.description}
-                  </p>
-                </div>
+              {/* Description */}
+              <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4">
+                {playlist.description}
+              </p>
 
-                <div className="mt-4 flex items-center text-xs font-semibold text-blue-600 group-hover:translate-x-1 transition-transform">
-                  Start Series →
-                </div>
+              {/* Footer */}
+              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:translate-x-1 transition-transform">
+                <span>Start Series →</span>
               </div>
             </Link>
           ))}

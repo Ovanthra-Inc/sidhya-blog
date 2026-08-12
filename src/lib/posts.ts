@@ -52,29 +52,43 @@ export function getAllPosts(includeDrafts = false): Post[] {
 
   const posts = filePaths
     .map((filePath) => {
-      const fileContents = fs.readFileSync(filePath, "utf8");
-      const { data, content } = matter(fileContents);
-      const filename = path.basename(filePath);
-      const relativePath = path.relative(postsDirectory, filePath);
-      const folderPath = path.dirname(relativePath);
+      try {
+        const fileContents = fs.readFileSync(filePath, "utf8");
+        const { data, content } = matter(fileContents);
+        const filename = path.basename(filePath);
+        const relativePath = path.relative(postsDirectory, filePath);
+        const folderPath = path.dirname(relativePath);
 
-      return {
-        title: data.title || "Untitled Post",
-        description: data.description || "",
-        slug: data.slug || filename.replace(/\.mdx?$/, ""),
-        date: data.date ? new Date(data.date).toISOString().split("T")[0] : "2026-08-09",
-        author: data.author || "Asutosh Sidhya",
-        category: data.category || "General",
-        tags: Array.isArray(data.tags) ? data.tags : [],
-        cover: data.cover || "/hero.png",
-        featured: Boolean(data.featured),
-        draft: Boolean(data.draft),
-        content,
-        readTime: calculateReadTime(content, data.readTime),
-        folderPath: folderPath !== "." ? folderPath : undefined,
-      } as Post;
+        let formattedDate = "2026-08-09";
+        if (data.date) {
+          try {
+            formattedDate = new Date(data.date).toISOString().split("T")[0];
+          } catch {
+            formattedDate = "2026-08-09";
+          }
+        }
+
+        return {
+          title: data.title || "Untitled Post",
+          description: data.description || "",
+          slug: data.slug || filename.replace(/\.mdx?$/, ""),
+          date: formattedDate,
+          author: data.author || "Asutosh Sidhya",
+          category: data.category || "General",
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          cover: data.cover || "/hero.png",
+          featured: Boolean(data.featured),
+          draft: Boolean(data.draft),
+          content: content || "",
+          readTime: calculateReadTime(content || "", data.readTime),
+          folderPath: folderPath !== "." ? folderPath : undefined,
+        } as Post;
+      } catch (err) {
+        console.error(`[posts] Error parsing post file ${filePath}:`, err);
+        return null;
+      }
     })
-    .filter((post) => includeDrafts || !post.draft)
+    .filter((post): post is Post => post !== null && (includeDrafts || !post.draft))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return posts;

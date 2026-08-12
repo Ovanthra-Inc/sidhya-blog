@@ -1,18 +1,32 @@
-import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import BackButton from "@/components/ui/BackButton";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = {
   title: "Terms of Service | SIDHYA",
-  description: "Terms of service for SIDHYA technical blog by Asutosh Sidhya.",
+  description: "Terms of service and intellectual property guidelines for SIDHYA technical blog by Asutosh Sidhya.",
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    title: "Terms of Service | SIDHYA",
+    description: "Terms of service and intellectual property guidelines for SIDHYA technical blog by Asutosh Sidhya.",
+    url: "https://sidhya.studio/terms",
+    type: "website",
+  },
 };
 
 export default function TermsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <Navbar />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Terms of Service", url: "/terms" },
+        ]}
+      />
 
-      <main className="px-6 md:px-20 pt-20 pb-16 max-w-4xl mx-auto w-full flex-1">
+      <main className="px-6 md:px-20 pt-10 pb-16 max-w-4xl mx-auto w-full flex-1">
         {/* Top Back Button */}
         <BackButton label="Previous" />
 
@@ -26,36 +40,17 @@ export default function TermsPage() {
 
         <div className="flex flex-col gap-6 text-gray-700 text-base leading-relaxed p-0">
           <p>
-            Welcome to <strong>SIDHYA</strong>. By viewing, reading, or referencing our technical articles, code repositories, and tutorials, you agree to comply with and be bound by the following terms.
+            Welcome to <strong>SIDHYA Blog</strong> (https://sidhya.studio). By accessing our website, you agree to comply with these Terms of Service.
           </p>
 
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            1. Intellectual Property & Attribution
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-4">1. Content & Code Open Access</h2>
           <p>
-            All original technical content, architectural diagrams, vector search benchmark write-ups, and code snippets published on <strong>SIDHYA</strong> are authored by <strong>Asutosh Sidhya</strong>. You are permitted to quote code snippets and link to articles provided proper attribution back to SIDHYA is included.
+            All code snippets and engineering implementations published on SIDHYA Blog are provided for educational and production reference. You are free to adapt code snippets in your projects.
           </p>
 
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            2. Code Disclaimer & Licensing
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-4">2. Intellectual Property</h2>
           <p>
-            All software code, scripts, and production snippets provided on this site are for educational purposes. While we rigorously test all implementation patterns, software code is provided &quot;as is&quot; without implied warranties. Always inspect and test code within your own staging environments prior to production deployment.
-          </p>
-
-          <h2 className="text-xl font-bold text-gray-900 mt-2 border-b border-gray-100 pb-2">
-            3. Contact Information
-          </h2>
-          <p>
-            For licensing inquiries, technical corrections, or business communications, contact Asutosh Sidhya directly at{" "}
-            <a
-              href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 font-semibold underline hover:text-blue-800"
-            >
-              sidhyaasutosh@gmail.com
-            </a>.
+            The original articles, architectural diagrams, brand logos, and original written tutorials remain the intellectual property of Asutosh Sidhya.
           </p>
         </div>
       </main>

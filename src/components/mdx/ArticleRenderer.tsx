@@ -3,6 +3,7 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import CodeBlock from "./CodeBlock";
+import SafeImage from "@/components/ui/SafeImage";
 
 // Lazy-load Mermaid renderer (client-only, heavy dependency)
 const MermaidDiagram = dynamic(() => import("./MermaidDiagram"), {
@@ -16,33 +17,73 @@ const MermaidDiagram = dynamic(() => import("./MermaidDiagram"), {
   ),
 });
 
-// ─── Inline markdown helper ───────────────────────────────────────────────────
-// Supports: **bold**, *italic*, `inline code`, [link](url), ~~strikethrough~~
+// ─── Inline markdown helper (Recursive & Robust) ───────────────────────────────
 function inlineRender(text: string): React.ReactNode {
   if (!text) return text;
-  const parts = text.split(
-    /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|~~[^~]+~~)/g
-  );
+
+  // Regex pattern matching bold, italic, code, markdown links, and strikethrough
+  const INLINE_REGEX = /(\*\*[\s\S]+?\*\*|\*[^\s*][^*]*?\*|`[^`]+?`|\[[^\]]+?\]\([^)]+?\)|~~[\s\S]+?~~)/g;
+
+  const parts = text.split(INLINE_REGEX);
+
   return parts.filter(Boolean).map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**"))
-      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
-    if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**"))
-      return <em key={i} className="italic text-gray-700">{part.slice(1, -1)}</em>;
-    if (part.startsWith("`") && part.endsWith("`"))
+    // 1. Code blocks (raw, non-recursive)
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
       return (
-        <code key={i} className="px-1.5 py-0.5 rounded-md bg-gray-100 text-pink-600 text-[0.85em] font-mono border border-gray-200">
+        <code
+          key={i}
+          className="px-1.5 py-0.5 rounded-md bg-gray-100 text-pink-600 text-[0.85em] font-mono border border-gray-200"
+        >
           {part.slice(1, -1)}
         </code>
       );
-    if (part.startsWith("~~") && part.endsWith("~~"))
-      return <del key={i} className="line-through text-gray-400">{part.slice(2, -2)}</del>;
-    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (linkMatch)
+    }
+
+    // 2. Bold (recursive for nested links/italics)
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       return (
-        <a key={i} href={linkMatch[2]} className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition-colors" target={linkMatch[2].startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer">
-          {linkMatch[1]}
+        <strong key={i} className="font-semibold text-gray-900">
+          {inlineRender(part.slice(2, -2))}
+        </strong>
+      );
+    }
+
+    // 3. Italic (recursive)
+    if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**") && part.length >= 2) {
+      return (
+        <em key={i} className="italic text-gray-700">
+          {inlineRender(part.slice(1, -1))}
+        </em>
+      );
+    }
+
+    // 4. Strikethrough (recursive)
+    if (part.startsWith("~~") && part.endsWith("~~") && part.length >= 4) {
+      return (
+        <del key={i} className="line-through text-gray-400">
+          {inlineRender(part.slice(2, -2))}
+        </del>
+      );
+    }
+
+    // 5. Links (recursive label text to support bold/italic links)
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      const [, linkText, linkUrl] = linkMatch;
+      const isExternal = linkUrl.startsWith("http");
+      return (
+        <a
+          key={i}
+          href={linkUrl}
+          className="text-blue-600 font-semibold underline underline-offset-2 hover:text-blue-800 transition-colors cursor-pointer"
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noopener noreferrer" : undefined}
+        >
+          {inlineRender(linkText)}
         </a>
       );
+    }
+
     return part;
   });
 }
@@ -141,7 +182,23 @@ export default function ArticleRenderer({ content }: ArticleRendererProps) {
         if (block.type === "hr")
           return <hr key={idx} className="my-6 border-0 border-t border-gray-200" />;
 
-        /* ── Code block (syntax highlighted) ── */
+        /* ── Inline Image ── */
+        if (block.type === "image")
+          return (
+            <div key={idx} className="my-6 relative w-full h-[320px] md:h-[480px] rounded-2xl overflow-hidden bg-gray-100 shadow-sm border border-gray-200">
+              <SafeImage
+                src={block.url || ""}
+                alt={block.text || "Article illustration"}
+                fallbackTitle={block.text}
+                category="ARTICLE"
+                fill
+                sizes="(max-width: 768px) 100vw, 800px"
+                className="object-cover"
+              />
+            </div>
+          );
+
+        /* ── Code block ── */
         if (block.type === "code")
           return <CodeBlock key={idx} code={block.text} language={block.language} />;
 
@@ -149,7 +206,7 @@ export default function ArticleRenderer({ content }: ArticleRendererProps) {
         if (block.type === "mermaid")
           return <MermaidDiagram key={idx} chart={block.text} />;
 
-        /* ── Legacy ASCII flowchart (```flowchart / ```diagram) ── */
+        /* ── Legacy ASCII flowchart ── */
         if (block.type === "diagram")
           return (
             <div key={idx} className="my-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md overflow-hidden">
@@ -216,7 +273,7 @@ export default function ArticleRenderer({ content }: ArticleRendererProps) {
             </ul>
           );
 
-        /* ── Ordered (numbered) list ── */
+        /* ── Ordered list ── */
         if (block.type === "olist" && block.items)
           return (
             <ol key={idx} className="my-1 space-y-1.5 list-none pl-0 counter-reset-[item]">
@@ -280,13 +337,14 @@ function slugify(text: string): string {
 interface MDXBlock {
   type:
     | "h1" | "h2" | "h3" | "h4" | "h5"
-    | "p" | "hr"
+    | "p" | "hr" | "image"
     | "code" | "mermaid" | "diagram"
     | "youtube"
     | "blockquote" | "alert"
     | "list" | "olist"
     | "table";
   text: string;
+  url?: string;
   language?: string;
   alertType?: string;
   items?: string[];
@@ -351,6 +409,14 @@ function parseMDXBlocks(content: string): MDXBlock[] {
       continue;
     }
     if (inCode) { codeBuffer.push(line); continue; }
+
+    // ── Markdown Image ![alt](url) ───────────────────────────────────────────
+    const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)/);
+    if (imgMatch) {
+      flushList();
+      blocks.push({ type: "image", text: imgMatch[1], url: imgMatch[2] });
+      continue;
+    }
 
     // ── Tables ────────────────────────────────────────────────────────────────
     if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
@@ -420,7 +486,6 @@ function parseMDXBlocks(content: string): MDXBlock[] {
     if (trimmed.startsWith("> [!")) {
       const match = trimmed.match(/^>\s*\[!([A-Z]+)\]\s*(.*)/);
       if (match) {
-        // Collect continuation lines that start with "> "
         let alertText = match[2];
         while (i + 1 < lines.length && lines[i + 1].trimStart().startsWith("> ")) {
           i++;

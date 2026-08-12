@@ -22,12 +22,12 @@ export default function BackButton({ label = "Previous", className = "" }: BackB
   return (
     <button
       onClick={handleBack}
-      className={`inline-flex items-center gap-2 text-sm font-medium text-[#115FD6] hover:text-blue-700 transition-colors cursor-pointer mb-6 group ${className}`}
+      className={`inline-flex items-center gap-2 text-xs font-bold text-blue-600 bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all cursor-pointer mb-6 px-3.5 py-2 rounded-none shadow-xs group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       title="Go back to previous page"
     >
       <svg
-        width="18"
-        height="18"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"

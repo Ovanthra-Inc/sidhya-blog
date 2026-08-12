@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import SafeImage from "@/components/ui/SafeImage";
 
 export default function Footer() {
   return (
@@ -10,9 +10,11 @@ export default function Footer() {
           <div className="md:col-span-1 flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-3 group">
               <div className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Image
+                <SafeImage
                   src="/logo-s.png"
                   alt="SIDHYA Logo"
+                  fallbackTitle="SIDHYA"
+                  category="LOGOTYPE"
                   fill
                   sizes="36px"
                   className="object-cover"
@@ -29,9 +31,11 @@ export default function Footer() {
             {/* Author Profile Quick Card */}
             <div className="flex items-center gap-3 pt-2">
               <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                <Image
+                <SafeImage
                   src="/avatar.jpg"
                   alt="Asutosh Sidhya"
+                  fallbackTitle="Asutosh Sidhya"
+                  category="AUTHOR"
                   fill
                   sizes="36px"
                   className="object-cover"
@@ -135,6 +139,7 @@ export default function Footer() {
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="hover:text-black transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-black transition-colors">Terms of Service</Link>
+            <a href="/rss.xml" className="hover:text-black transition-colors" target="_blank" rel="noreferrer">RSS Feed</a>
             <Link href="/sitemap.xml" className="hover:text-black transition-colors">Sitemap</Link>
           </div>
         </div>
