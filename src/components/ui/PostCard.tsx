@@ -5,6 +5,7 @@ import { Post } from "@/lib/posts";
 
 interface PostCardProps {
   post: Post;
+  index?: number;
   variant?: "grid" | "compact" | "horizontal";
   priority?: boolean;
 }
@@ -19,29 +20,41 @@ export default function PostCard({
       <Link
         href={`/posts/${post.slug}`}
         prefetch={true}
-        className="group flex flex-col rounded-none border-0 transition-all duration-200 cursor-pointer bg-white"
+        className="group relative flex flex-col justify-between rounded-xl overflow-hidden transition-all duration-300 cursor-pointer bg-white border border-gray-200/80 hover:border-gray-300 hover:shadow-md shadow-xs"
       >
-        <div className="relative w-full h-60 rounded-none overflow-hidden mb-3 bg-gray-100">
+        <div className="relative w-full aspect-[16/9] overflow-hidden bg-gray-100">
           <SafeImage
-            src={post.cover}
+            src={post.cover || "/hero.png"}
             alt={post.title}
             fallbackTitle={post.title}
             category={post.category}
             fill
-            sizes="(max-width: 780px) 100vw, 400px"
-            className="object-cover group-hover:scale-103 transition-transform duration-200 rounded-none"
             priority={priority}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
+          <div className="absolute top-2.5 left-2.5 z-10">
+            <span className="px-2 py-0.5 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-wider rounded">
+              {post.category}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
-          <span className="font-bold text-blue-600 uppercase tracking-wider text-[10px]">
-            {post.category}
-          </span>
-          <span className="text-[11px]">{post.readTime}</span>
+
+        <div className="p-4 flex flex-col flex-1 justify-between">
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1.5">
+            <span>{post.date}</span>
+            <span>{post.readTime}</span>
+          </div>
+
+          <h4 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
+            {post.title}
+          </h4>
+
+          <div className="pt-2.5 mt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+            <span>{post.author}</span>
+            <span className="font-bold text-blue-600">Read →</span>
+          </div>
         </div>
-        <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-blue-600 group-hover:underline transition-colors">
-          {post.title}
-        </h4>
       </Link>
     );
   }
@@ -51,117 +64,130 @@ export default function PostCard({
       <Link
         href={`/posts/${post.slug}`}
         prefetch={true}
-        className="group flex flex-col sm:flex-row gap-5 p-0 rounded-none border-0 transition-all duration-200 cursor-pointer bg-white"
+        className="group relative flex flex-col sm:flex-row rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer bg-white border border-gray-200/80 hover:border-gray-300 hover:shadow-xl shadow-xs h-full"
       >
-        <div className="relative w-full sm:w-[190px] h-56 sm:h-[150px] rounded-none overflow-hidden bg-gray-100 flex-shrink-0">
+        <div className="relative w-full sm:w-5/12 aspect-[16/9] sm:aspect-auto min-h-[180px] overflow-hidden bg-gray-100 flex-shrink-0">
           <SafeImage
-            src={post.cover}
+            src={post.cover || "/hero.png"}
             alt={post.title}
             fallbackTitle={post.title}
             category={post.category}
             fill
-            sizes="190px"
-            className="object-cover group-hover:scale-103 transition-transform duration-300 rounded-none"
             priority={priority}
+            sizes="(max-width: 1024px) 100vw, 40vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
+          <div className="absolute top-3 left-3 z-10 sm:hidden">
+            <span className="px-2.5 py-1 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
+              {post.category}
+            </span>
+          </div>
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="p-5 sm:p-6 flex flex-col flex-1 justify-between">
           <div>
-            <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-              <span className="font-bold text-blue-600 uppercase tracking-wider text-[10px]">
+            <div className="hidden sm:flex items-center justify-between text-xs text-gray-400 mb-2">
+              <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold uppercase tracking-wider text-[10px] rounded">
                 {post.category}
               </span>
-              <span className="text-[11px]">{post.readTime}</span>
+              <span className="font-semibold text-gray-500">{post.readTime}</span>
             </div>
 
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2 mb-1">
+            <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 leading-tight tracking-tight mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
               {post.title}
             </h3>
 
-            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4">
               {post.description}
             </p>
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-1.5">
-              <div className="relative w-4 h-4 rounded-none overflow-hidden flex-shrink-0">
+          <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600 mt-auto">
+            <div className="flex items-center gap-2">
+              <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
                 <SafeImage
                   src="/avatar.jpg"
                   alt={post.author}
                   fallbackTitle={post.author}
                   category="AUTHOR"
                   fill
-                  sizes="16px"
-                  className="object-cover rounded-none"
+                  sizes="20px"
+                  className="object-cover"
                 />
               </div>
-              <span className="font-semibold text-gray-800 text-[11px]">{post.author}</span>
+              <span className="font-semibold text-gray-800 text-xs">{post.author}</span>
             </div>
-            <span className="text-[10px] text-gray-400">{post.date}</span>
+            <span className="font-bold text-xs text-blue-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+              Read Article →
+            </span>
           </div>
         </div>
       </Link>
     );
   }
 
-  // Standard "grid" variant - Borderless, taller image height (h-[340px]), sharp square corners
+  // Standard "grid" variant featuring dynamic MDX cover image
   return (
     <Link
       href={`/posts/${post.slug}`}
       prefetch={true}
-      className="group flex flex-col rounded-none border-0 transition-all duration-200 cursor-pointer bg-white"
+      className="group relative flex flex-col justify-between rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer bg-white border border-gray-200/80 hover:border-gray-300 hover:shadow-xl shadow-xs"
     >
-      {/* Image Container - Increased Height */}
-      <div className="relative w-full h-[340px] rounded-none overflow-hidden mb-4 bg-gray-100">
+      {/* Cover Image */}
+      <div className="relative w-full aspect-[16/9] overflow-hidden bg-gray-100">
         <SafeImage
-          src={post.cover}
+          src={post.cover || "/hero.png"}
           alt={post.title}
           fallbackTitle={post.title}
           category={post.category}
           fill
-          sizes="(max-width: 780px) 100vw, 420px"
-          className="object-cover group-hover:scale-103 transition-transform duration-300 rounded-none"
           priority={priority}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
-      </div>
-
-      {/* Category Badge & Read Time */}
-      <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-        <span className="font-bold text-blue-600 uppercase tracking-wider text-[11px]">
-          {post.category}
-        </span>
-        <span>{post.readTime}</span>
-      </div>
-
-      {/* Title */}
-      <h2 className="text-xl font-bold text-gray-900 leading-snug mb-2 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
-        {post.title}
-      </h2>
-
-      {/* Description */}
-      <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4">
-        {post.description}
-      </p>
-
-      {/* Author Footer */}
-      <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-        <div className="flex items-center gap-2">
-          <div className="relative w-5 h-5 rounded-none overflow-hidden flex-shrink-0">
-            <SafeImage
-              src="/avatar.jpg"
-              alt={post.author}
-              fallbackTitle={post.author}
-              category="AUTHOR"
-              fill
-              sizes="20px"
-              className="object-cover rounded-none"
-            />
-          </div>
-          <span className="font-semibold text-gray-800">{post.author}</span>
+        <div className="absolute top-3 left-3 z-10">
+          <span className="px-2.5 py-1 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
+            {post.category}
+          </span>
         </div>
-        <span>{post.date}</span>
+      </div>
+
+      {/* Text Body */}
+      <div className="p-5 sm:p-6 flex flex-col flex-1 justify-between">
+        <div>
+          <div className="flex items-center justify-between text-xs text-gray-400 mb-2.5">
+            <span className="font-mono text-[11px]">{post.date}</span>
+            <span className="font-semibold text-gray-500">{post.readTime}</span>
+          </div>
+
+          <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 leading-tight tracking-tight mb-2.5 group-hover:text-blue-600 transition-colors line-clamp-2">
+            {post.title}
+          </h3>
+
+          <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4 font-normal">
+            {post.description}
+          </p>
+        </div>
+
+        <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600 mt-auto">
+          <div className="flex items-center gap-2">
+            <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
+              <SafeImage
+                src="/avatar.jpg"
+                alt={post.author}
+                fallbackTitle={post.author}
+                category="AUTHOR"
+                fill
+                sizes="24px"
+                className="object-cover"
+              />
+            </div>
+            <span className="font-semibold text-gray-800 text-xs">{post.author}</span>
+          </div>
+          <span className="font-bold text-xs text-blue-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+            Read Article →
+          </span>
+        </div>
       </div>
     </Link>
   );

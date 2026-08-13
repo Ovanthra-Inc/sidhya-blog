@@ -33,10 +33,10 @@ export default function LatestBlogs({ posts }: LatestBlogsProps) {
         </span>
       </div>
 
-      {/* Grid displaying 6 post cards per page using reusable PostCard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {currentPosts.map((blog) => (
-          <PostCard key={blog.slug} post={blog} variant="grid" />
+      {/* Grid displaying 6 post cards per page using dynamic sequence color blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {currentPosts.map((blog, idx) => (
+          <PostCard key={blog.slug} post={blog} index={startIndex + idx} variant="grid" />
         ))}
       </div>
 
@@ -62,7 +62,7 @@ export default function LatestBlogs({ posts }: LatestBlogsProps) {
             <button
               key={pageNum}
               onClick={() => setCurrentPage(pageNum)}
-              className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-none text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
                 pageNum === currentPage
                   ? "bg-black text-white shadow-xs scale-105"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"

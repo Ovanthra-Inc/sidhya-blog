@@ -42,9 +42,8 @@ export const metadata: Metadata = {
   publisher: "SIDHYA Blog",
   icons: {
     icon: [
-      { url: "/favicon.ico" },
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/logo-s.png", type: "image/png" },
-      { url: "/logo-s.svg", type: "image/svg+xml" },
     ],
     shortcut: "/favicon.ico",
     apple: "/logo-s.png",

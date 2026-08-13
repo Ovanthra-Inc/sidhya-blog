@@ -136,7 +136,7 @@ export default function PostsTabExplorer({
 
       {/* Search Feedback Banner */}
       {searchQuery && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-900">
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-none flex items-center justify-between text-xs text-blue-900">
           <span>
             Search results for: <strong>&quot;{initialQuery}&quot;</strong> (
             {filteredPosts.length} posts found)
@@ -165,9 +165,9 @@ export default function PostsTabExplorer({
         </span>
       </div>
 
-      {/* 4 Rows x 3 Columns Grid using Reusable PostCard */}
+      {/* 4 Rows x 3 Columns Grid using Image-Free Sequence-Colored PostCards */}
       {filteredPosts.length === 0 ? (
-        <div className="py-16 text-center text-gray-400 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+        <div className="py-16 text-center text-gray-400 bg-gray-50 rounded-none border border-dashed border-gray-200">
           <p className="text-base font-semibold mb-2">No matching posts found</p>
           <p className="text-xs mb-4">
             Try selecting another category tab or searching for different keywords.
@@ -180,9 +180,9 @@ export default function PostsTabExplorer({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {currentPosts.map((post) => (
-            <PostCard key={post.slug} post={post} variant="grid" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {currentPosts.map((post, idx) => (
+            <PostCard key={post.slug} post={post} index={startIndex + idx} variant="grid" />
           ))}
         </div>
       )}
@@ -216,7 +216,7 @@ export default function PostsTabExplorer({
               <button
                 key={pageNum}
                 onClick={() => handlePageClick(pageNum)}
-                className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-8 h-8 rounded-none text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
                   pageNum === currentPage
                     ? "bg-black text-white shadow-xs scale-105"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
