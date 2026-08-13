@@ -6,7 +6,7 @@ import { Post } from "@/lib/posts";
 interface PostCardProps {
   post: Post;
   index?: number;
-  variant?: "grid" | "compact" | "horizontal";
+  variant?: "grid" | "compact" | "horizontal" | "full-bg" | "color-block" | "horizontal-split" | "no-image";
   priority?: boolean;
 }
 
@@ -15,6 +15,234 @@ export default function PostCard({
   variant = "grid",
   priority = false,
 }: PostCardProps) {
+  // ── 1. Full Card Background Image Variant (For TopBlogs Card 1 & Card 3) ──
+  if (variant === "full-bg") {
+    return (
+      <Link
+        href={`/posts/${post.slug}`}
+        prefetch={true}
+        className="group relative flex flex-col justify-between p-6 sm:p-7 min-h-[380px] sm:min-h-[400px] overflow-hidden rounded-none transition-all duration-300 cursor-pointer bg-black text-white shadow-md hover:shadow-xl border-0"
+      >
+        {/* Full background cover image */}
+        <div className="absolute inset-0 z-0">
+          <SafeImage
+            src={post.cover || "/hero.png"}
+            alt={post.title}
+            fallbackTitle={post.title}
+            category={post.category}
+            fill
+            priority={priority}
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover object-center group-hover:scale-105 transition-transform duration-700 opacity-95"
+          />
+          {/* Refined subtle gradient overlay so the image is clearly visible while text stays readable */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/15 z-10" />
+        </div>
+
+        {/* Top Bar: Category Left, Read time Right */}
+        <div className="relative z-20 flex items-center justify-between text-xs mb-4">
+          <span className="px-2.5 py-1 bg-black/60 backdrop-blur-md text-white border border-white/20 text-[10px] font-bold uppercase tracking-wider rounded-none shadow-xs">
+            {post.category} • {post.readTime}
+          </span>
+        </div>
+
+        {/* Middle Body: Title + Description */}
+        <div className="relative z-20 my-auto py-2">
+          <h2 className="text-xl sm:text-2xl font-black text-white leading-tight uppercase tracking-tight mb-3 line-clamp-3 group-hover:translate-x-1 transition-transform drop-shadow-md">
+            {post.title}
+          </h2>
+
+          <p className="text-xs text-white/95 line-clamp-3 leading-relaxed font-medium drop-shadow-xs">
+            {post.description}
+          </p>
+        </div>
+
+        {/* Bottom Footer */}
+        <div className="relative z-20 pt-4 border-t border-white/20 flex items-center justify-between text-xs text-white mt-4">
+          <div className="flex items-center gap-2.5">
+            <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/40">
+              <SafeImage
+                src="/avatar.jpg"
+                alt={post.author}
+                fallbackTitle={post.author}
+                category="AUTHOR"
+                fill
+                sizes="24px"
+                className="object-cover rounded-none"
+              />
+            </div>
+            <span className="font-bold text-white text-xs">{post.author}</span>
+          </div>
+
+          <span className="font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+            READ ARTICLE →
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
+  // ── 2. Solid Crimson Color Block Variant (For TopBlogs Card 2) ──
+  if (variant === "color-block") {
+    return (
+      <Link
+        href={`/posts/${post.slug}`}
+        prefetch={true}
+        className="group relative flex flex-col justify-between p-6 sm:p-7 min-h-[380px] sm:min-h-[400px] overflow-hidden rounded-none transition-all duration-300 cursor-pointer bg-gradient-to-br from-red-600 via-rose-600 to-red-700 text-white shadow-md hover:shadow-xl border-0"
+      >
+        {/* Top Bar: Category Left, Read time Right */}
+        <div className="flex items-center justify-between text-xs mb-4">
+          <span className="px-2.5 py-1 bg-black/30 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-none">
+            {post.category}
+          </span>
+          <span className="text-xs font-semibold text-white/90">{post.readTime}</span>
+        </div>
+
+        {/* Middle Body: Bold Uppercase Title + Description */}
+        <div className="my-auto py-2">
+          <h2 className="text-xl sm:text-2xl font-black text-white leading-tight uppercase tracking-tight mb-3 line-clamp-4 group-hover:translate-x-1 transition-transform">
+            {post.title}
+          </h2>
+
+          <p className="text-xs text-white/90 line-clamp-3 leading-relaxed font-medium">
+            {post.description}
+          </p>
+        </div>
+
+        {/* Bottom Footer */}
+        <div className="pt-4 border-t border-white/20 flex items-center justify-between text-xs text-white mt-4">
+          <div className="flex items-center gap-2.5">
+            <div className="relative w-6 h-6 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/40">
+              <SafeImage
+                src="/avatar.jpg"
+                alt={post.author}
+                fallbackTitle={post.author}
+                category="AUTHOR"
+                fill
+                sizes="24px"
+                className="object-cover rounded-none"
+              />
+            </div>
+            <span className="font-bold text-white text-xs">{post.author}</span>
+          </div>
+
+          <span className="font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+            READ ARTICLE →
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
+  // ── 3. Horizontal Split Card (Text Left, Image Right - For TopBlogs Card 4) ──
+  if (variant === "horizontal-split") {
+    return (
+      <Link
+        href={`/posts/${post.slug}`}
+        prefetch={true}
+        className="group relative flex flex-col sm:flex-row justify-between p-6 sm:p-7 rounded-none transition-all duration-300 cursor-pointer bg-black text-white min-h-[240px] shadow-md hover:shadow-xl border-0 gap-6 h-full"
+      >
+        <div className="flex-1 min-w-0 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs mb-3">
+            <span className="px-2.5 py-1 bg-blue-900/60 border border-blue-500/30 text-blue-300 text-[10px] font-bold uppercase tracking-wider rounded-none">
+              {post.category} • {post.readTime}
+            </span>
+          </div>
+
+          <div className="my-auto py-2">
+            <h3 className="text-xl sm:text-2xl font-black text-white leading-tight uppercase tracking-tight line-clamp-2 mb-2 group-hover:translate-x-1 transition-transform">
+              {post.title}
+            </h3>
+            <p className="text-xs text-white/80 line-clamp-2 leading-relaxed font-normal">
+              {post.description}
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-white/90 mt-4">
+            <div className="flex items-center gap-2">
+              <div className="relative w-5 h-5 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+                <SafeImage
+                  src="/avatar.jpg"
+                  alt={post.author}
+                  fallbackTitle={post.author}
+                  category="AUTHOR"
+                  fill
+                  sizes="20px"
+                  className="object-cover rounded-none"
+                />
+              </div>
+              <span className="font-bold text-white text-xs">{post.author}</span>
+            </div>
+            <span className="font-bold uppercase tracking-wider text-xs group-hover:translate-x-1 transition-transform">
+              EXPLORE →
+            </span>
+          </div>
+        </div>
+
+        {/* Right side image container */}
+        <div className="relative w-full sm:w-48 md:w-56 aspect-[4/3] sm:aspect-auto sm:h-full min-h-[160px] overflow-hidden rounded-none bg-zinc-900 flex-shrink-0 self-center">
+          <SafeImage
+            src={post.cover || "/hero.png"}
+            alt={post.title}
+            fallbackTitle={post.title}
+            category={post.category}
+            fill
+            priority={priority}
+            sizes="(max-width: 1024px) 100vw, 250px"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+      </Link>
+    );
+  }
+
+  // ── 4. Pure Text Card - No Image / No Fallback (For TopBlogs Card 5) ──
+  if (variant === "no-image") {
+    return (
+      <Link
+        href={`/posts/${post.slug}`}
+        prefetch={true}
+        className="group relative flex flex-col justify-between p-6 sm:p-7 rounded-none transition-all duration-300 cursor-pointer bg-black text-white min-h-[240px] shadow-md hover:shadow-xl border-0 h-full"
+      >
+        <div className="flex items-center justify-between text-xs mb-3">
+          <span className="px-2.5 py-1 bg-red-900/60 border border-red-500/30 text-red-300 text-[10px] font-bold uppercase tracking-wider rounded-none">
+            {post.category} • {post.readTime}
+          </span>
+        </div>
+
+        <div className="my-auto py-2">
+          <h3 className="text-xl sm:text-2xl font-black text-white leading-tight uppercase tracking-tight line-clamp-2 mb-2 group-hover:translate-x-1 transition-transform">
+            {post.title}
+          </h3>
+          <p className="text-xs text-white/80 line-clamp-3 leading-relaxed font-normal">
+            {post.description}
+          </p>
+        </div>
+
+        <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-white/90 mt-4">
+          <div className="flex items-center gap-2">
+            <div className="relative w-5 h-5 rounded-none overflow-hidden flex-shrink-0 ring-1 ring-white/30">
+              <SafeImage
+                src="/avatar.jpg"
+                alt={post.author}
+                fallbackTitle={post.author}
+                category="AUTHOR"
+                fill
+                sizes="20px"
+                className="object-cover rounded-none"
+              />
+            </div>
+            <span className="font-bold text-white text-xs">{post.author}</span>
+          </div>
+          <span className="font-bold uppercase tracking-wider text-xs text-white flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+            EXPLORE →
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
+  // ── 5. Compact Card ──
   if (variant === "compact") {
     return (
       <Link
@@ -59,6 +287,7 @@ export default function PostCard({
     );
   }
 
+  // ── 6. Horizontal Card ──
   if (variant === "horizontal") {
     return (
       <Link
@@ -126,7 +355,7 @@ export default function PostCard({
     );
   }
 
-  // Standard "grid" variant featuring dynamic MDX cover image
+  // ── 7. Standard "grid" variant featuring dynamic MDX cover image (For LatestBlogs & Posts Explorer) ──
   return (
     <Link
       href={`/posts/${post.slug}`}

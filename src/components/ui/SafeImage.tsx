@@ -117,6 +117,7 @@ export default function SafeImage({
         width={width}
         height={height}
         priority={priority}
+        loading={priority ? "eager" : props.loading}
         sizes={sizes}
         onError={() => setError(true)}
         {...props}
