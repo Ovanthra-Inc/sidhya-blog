@@ -2,7 +2,7 @@
 title: "LLM Evals in Production: Automated Benchmarking with LangSmith & Braintrust"
 description: "A practical engineering handbook for building CI/CD test suites, semantic assertion evals, automated LLM-as-a-judge pipelines, and tracing cost/latency bottlenecks."
 slug: "production-llm-evals"
-date: "2026-08-09"
+date: "2026-05-22"
 author: "Asutosh Sidhya"
 category: "Tools"
 tags:
@@ -15,21 +15,23 @@ featured: false
 draft: false
 ---
 
-The single biggest blocker to shipping AI agents to enterprise production is **evaluation**. Without continuous, automated evaluation (Evals), prompt modifications, model updates, or retrieval adjustments introduce unseen regressions that damage output quality, increase latency, and inflate operational API costs.
+# LLM Evals in Production: Automated Benchmarking with LangSmith & Braintrust
 
-In this handbook, we cover how to construct production-grade evaluation pipelines using **LangSmith** and **Braintrust**, implement deterministic scoring metrics, and integrate automated LLM-as-a-judge test suites into GitHub Actions CI/CD workflows.
+When software teams ship LLM-powered features without automated evaluation suites, even minor prompt tweaks or model API version bumps cause silent production regressions: structured JSON schemas break, latency SLAs degrade, and domain hallucinations slip through undetected.
+
+Evaluation pipelines (Evals) are to AI engineering what automated integration test suites are to distributed backend systems. This guide details how to construct an automated evaluation pipeline using **deterministic Python heuristics**, **structured LLM-as-a-judge scorers**, **LangSmith dataset benchmarking**, and **GitHub Actions CI gates**.
 
 > [!NOTE]
-> Evals are to AI engineering what unit tests are to traditional software development. Never deploy a prompt change or model migration without running your evaluation suite against benchmark datasets.
+> Treat prompts and model parameters like code. Every pull request modifying a system prompt or model configuration should trigger automated evaluation runs against a versioned golden benchmark dataset before merging.
 
 ---
 
-## 1. The Continuous Evaluation Pipeline
+## 1. The Continuous Evaluation Lifecycle
 
-A robust evaluation strategy tracks quality across three stages:
-1. **Pre-commit / CI Evaluation**: Running synthetic regression datasets on prompt changes.
-2. **Online Telemetry Tracing**: Capturing real user inputs, outputs, and latency traces in production.
-3. **Feedback Feedback Loops**: Converting low-score user interactions into new golden test cases.
+A robust evaluation harness operates across three testing horizons:
+1. **Offline Regression Testing (CI/CD)**: Running deterministic heuristics and judge models on PR branches against versioned benchmark datasets.
+2. **Online Telemetry & Tracing**: Capturing production input/output tokens, latency distributions, and runtime exceptions.
+3. **Curated Feedback Loops**: Ingesting production edge cases (e.g. user thumbs-down or explicit corrections) into golden datasets.
 
 ```mermaid
 graph TD
@@ -37,56 +39,61 @@ graph TD
     classDef evalStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
     classDef prodStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
 
-    PromptChange[Developer Modifies Prompt/Code] -->|Trigger PR| GitHubCI[GitHub Actions CI Pipeline]:::devStyle
-    GitHubCI --> Dataset[Load Golden Benchmark Dataset]:::evalStyle
+    PR[Developer Modifies Prompt / Model Version] -->|GitHub Actions Trigger| CI[CI Evaluation Runner]:::devStyle
+    CI --> Benchmark[(Golden Benchmark Dataset)]:::evalStyle
     
-    Dataset --> EvalSuite[Run Evaluators: Exact Match + LLM-as-a-Judge]:::evalStyle
-    EvalSuite --> PassCheck{Pass Rate >= 95%?}
+    Benchmark --> HeuristicLayer[Layer 1: Fast Deterministic Heuristics]:::evalStyle
+    HeuristicLayer --> JudgeLayer[Layer 2: Structured LLM Referee Judge]:::evalStyle
     
-    PassCheck -- No --> BlockPR[Block Pull Request Merge]:::devStyle
-    PassCheck -- Yes --> Deploy[Deploy to Production]:::prodStyle
+    JudgeLayer --> Gate{Pass Rate >= 95% & Latency SLA Met?}
+    Gate -- No --> Block[Block Pull Request Merge]:::devStyle
+    Gate -- Yes --> Deploy[Deploy to Production]:::prodStyle
     
-    Deploy --> Tracing[LangSmith / Braintrust Telemetry]:::prodStyle
-    Tracing --> UserFeedback[User Thumbs Down / Explicit Correction]:::prodStyle
-    UserFeedback --> Dataset
+    Deploy --> Trace[LangSmith Distributed Telemetry Tracing]:::prodStyle
+    Trace --> Regressions[Flag Low Confidence Traces]:::prodStyle
+    Regressions --> Benchmark
 ```
 
 ---
 
-## 2. Defining Deterministic & Heuristic Evaluators
+## 2. Layer 1: Deterministic & Heuristic Evaluators
 
-Before relying on expensive LLM-as-a-judge calls, always run fast, deterministic Python heuristics (e.g., regex matching, schema validation, latency budgets, and cost thresholds).
+Before burning compute on LLM referee models, always execute deterministic Python assertions (JSON parsing, regex schema constraints, latency ceilings, and forbidden word filters).
 
 ```python
+import json
 import re
-from typing import Dict, Any
+from typing import Callable
 
-def eval_json_schema_validity(run_output: str) -> float:
+def eval_strict_json(output: str) -> float:
     """
-    Evaluates whether the output string is valid JSON without markdown wrapping.
-    Returns 1.0 for pass, 0.0 for fail.
+    Asserts that the LLM output is valid JSON without markdown code fences.
+    Returns 1.0 for valid parse, 0.0 for failure.
     """
-    import json
+    clean_text = output.strip()
+    if clean_text.startswith("```"):
+        return 0.0  # Rejected: Contained markdown fences when raw JSON was requested
     try:
-        json.loads(run_output)
+        json.loads(clean_text)
         return 1.0
     except ValueError:
         return 0.0
 
-def eval_latency_budget(latency_ms: float, max_budget_ms: float = 1500.0) -> float:
+def eval_latency_sla(duration_ms: float, max_allowed_ms: float = 1200.0) -> float:
     """
-    Evaluates runtime latency against SLA budget.
+    Computes a linear decay score if latency exceeds the SLA budget.
     """
-    if latency_ms <= max_budget_ms:
+    if duration_ms <= max_allowed_ms:
         return 1.0
-    return max(0.0, 1.0 - ((latency_ms - max_budget_ms) / max_budget_ms))
+    overshoot = duration_ms - max_allowed_ms
+    return max(0.0, 1.0 - (overshoot / max_allowed_ms))
 
-def eval_no_forbidden_phrases(run_output: str, forbidden: list[str]) -> float:
+def eval_forbidden_phrases(output: str, forbidden_phrases: list[str]) -> float:
     """
-    Ensures model avoids apologetic or generic fallback phrases.
+    Ensures the model avoids apologetic conversational fluff or sycophancy.
     """
-    lowered = run_output.lower()
-    for phrase in forbidden:
+    lowered = output.lower()
+    for phrase in forbidden_phrases:
         if phrase.lower() in lowered:
             return 0.0
     return 1.0
@@ -94,76 +101,88 @@ def eval_no_forbidden_phrases(run_output: str, forbidden: list[str]) -> float:
 
 ---
 
-## 3. Implementing Automated LLM-as-a-Judge with LangSmith
+## 3. Layer 2: Automated LLM-as-a-Judge with Structured Output
 
-For qualitative criteria—such as tone consistency, hallucination detection, or answer conciseness—we use strong referee models (e.g., GPT-4o or Claude 3.5 Sonnet) configured with structured scoring rubrics.
+For evaluating semantic alignment, factual grounding, and tone adherence, configure a referee model (such as GPT-4o) with a strictly typed Pydantic scoring schema:
 
 ```python
-from langsmith.evaluation import StringEvaluator, evaluate
+from langsmith.evaluation import evaluate
 from langsmith.schemas import Run, Example
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
 client = OpenAI()
 
-class GradeResult(BaseModel):
-    score: float = Field(description="Score between 0.0 (completely inaccurate) and 1.0 (perfect).")
-    explanation: str = Field(description="Detailed justification for the assigned score.")
+class EvaluationRubric(BaseModel):
+    factual_correctness: float = Field(
+        ge=0.0, le=1.0, 
+        description="1.0 if output factually answers question without hallucination, else 0.0-0.9."
+    )
+    conciseness_score: float = Field(
+        ge=0.0, le=1.0, 
+        description="1.0 if output avoids filler or unnecessary verbosity."
+    )
+    justification: str = Field(description="Detailed explanation justifying the rubric scores.")
 
-def llm_judge_correctness(run: Run, example: Example) -> Dict[str, Any]:
+def structured_llm_judge(run: Run, example: Example) -> dict:
     """
-    Custom LangSmith evaluator comparing model prediction against ground truth reference.
+    LangSmith custom evaluator using OpenAI Structured Outputs.
     """
-    input_question = example.inputs.get("question", "")
-    reference_answer = example.outputs.get("answer", "")
-    predicted_answer = run.outputs.get("output", "")
+    question = example.inputs.get("question", "")
+    ground_truth = example.outputs.get("reference_answer", "")
+    model_output = run.outputs.get("output", "")
 
     prompt = f"""
-    You are an expert technical referee evaluating AI model outputs.
-    
-    Question: {input_question}
-    Reference Ground Truth: {reference_answer}
-    Model Predicted Answer: {predicted_answer}
-    
-    Grade the prediction for factual correctness, completeness, and lack of hallucination.
+    You are an expert technical evaluator. Grade the model prediction against the ground truth reference.
+
+    User Question: {question}
+    Reference Answer: {ground_truth}
+    Candidate Prediction: {model_output}
     """
 
     response = client.beta.chat.completions.parse(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
-        response_format=GradeResult,
-        temperature=0.0
+        response_format=EvaluationRubric,
+        temperature=0.0,
     )
 
-    grade = response.choices[0].message.parsed
+    rubric = response.choices[0].message.parsed
     return {
-        "key": "factual_correctness",
-        "score": grade.score,
-        "comment": grade.explanation
+        "key": "correctness_score",
+        "score": rubric.factual_correctness,
+        "comment": rubric.justification,
     }
 
-# Run automated evaluation suite over a target dataset
-# results = evaluate(
-#     my_target_chain,
-#     data="SidhyaBlog-Golden-Benchmark",
-#     evaluators=[llm_judge_correctness],
-#     experiment_prefix="prompt-v2.1-test"
-# )
+# Runnable LangSmith Evaluation Suite
+def run_evaluation_suite(target_pipeline: Callable[[dict], dict], dataset_name: str):
+    results = evaluate(
+        target_pipeline,
+        data=dataset_name,
+        evaluators=[structured_llm_judge],
+        experiment_prefix="prompt-v3-ci-benchmark",
+        max_concurrency=4,
+    )
+    print(f"Evaluation Complete. Results recorded in LangSmith: {results}")
+    return results
 ```
 
 ---
 
-## 4. GitHub Actions CI/CD Evaluation Workflow
+## 4. GitHub Actions CI/CD Regression Workflow
 
-Automating evaluation in your pull request workflow prevents regressions from reaching production main branches.
+Automating evaluation in your pull request workflow prevents prompt regressions from breaking production:
 
 ```yaml
 # .github/workflows/evals.yml
-name: AI Model Regression Evals
+name: LLM Regression & Quality Evals
 
 on:
   pull_request:
-    branches: [ main ]
+    paths:
+      - 'prompts/**'
+      - 'lib/ai/**'
+      - 'models/**'
 
 jobs:
   run-evals:
@@ -172,45 +191,45 @@ jobs:
       - name: Checkout Codebase
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: Install Test Dependencies
         run: |
           pip install langsmith openai pydantic pytest
 
-      - name: Execute LangSmith Evaluation Suite
+      - name: Execute Golden Benchmark Suite
         env:
           LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           LANGCHAIN_TRACING_V2: "true"
-          LANGCHAIN_PROJECT: "ci-pr-evals"
+          LANGCHAIN_PROJECT: "ci-regression-evals"
         run: |
-          python -m pytest tests/evals/test_benchmarks.py --exitfirst
+          python -m pytest tests/evals/test_production_benchmarks.py --exitfirst
 ```
 
 ---
 
-## 5. Evaluation Framework Matrix
+## 5. Evaluation Framework Comparison Matrix
 
-| Metric / Feature | Human Annotations | Custom Python Heuristics | LangSmith / Braintrust Evals |
+| Evaluation Dimension | Manual Human Spot Checks | Python Deterministic Assertions | LLM-as-a-Judge (LangSmith) |
 | :--- | :--- | :--- | :--- |
-| **Feedback Speed** | Slow (Days/Weeks) | Instant (<10ms) | Fast (1-3s per sample) |
-| **Cost Per Sample** | High ($1-$5) | Free ($0.00) | Low (~$0.005) |
-| **CI/CD Automation** | Impossible | First-class | First-class |
-| **Qualitative Nuance** | Excellent | Poor | High (with LLM Referee) |
-| **Trace Visibility** | None | Limited Log Snippets | Full Call Tree Tracing & Token Costs |
+| **Execution Latency** | Days to Weeks | **Instant (< 5ms)** | 1–3 seconds |
+| **Cost Per Run** | High ($5–$20/sample) | **Free ($0.00)** | ~$0.003 / sample |
+| **CI Automation** | Impossible | **First-Class** | **First-Class** |
+| **Nuance & Reasoning** | High | Low (Syntax/Regex only) | **High (Structured Rubric)** |
+| **Drift Detection** | Slow & Subjective | Binary | **Continuous & Trackable** |
 
 > [!WARNING]
-> Watch out for "LLM-as-a-judge bias"—models often favor responses generated by their own family (e.g., GPT-4o scoring GPT-4o higher than Claude 3.5). Use multi-model referee panels or standardized scoring criteria to mitigate bias!
+> Beware of "LLM Self-Preference Bias"—evaluator models systematically score outputs from their own model family higher. Counter this by pairing multi-family referee panels (e.g. Claude 3.5 Sonnet judging GPT-4o outputs) or enforcing strictly defined scoring rubrics.
 
 ---
 
 ## Key Takeaways
 
-- **Golden Benchmark Datasets**: Maintain a curated, version-controlled dataset of edge-case user queries and expected outputs.
-- **Layered Scoring Strategy**: Run cheap deterministic Python heuristics first before calling expensive LLM-as-a-judge routines.
-- **Automated CI Gates**: Block pull requests automatically if evaluation scores regress below target thresholds (e.g., 95% pass rate).
-- **Telemetry Tracing**: Capture real-world production traces in LangSmith or Braintrust to continuously expand test coverage.
+- **Layered Verification**: Run cheap, fast deterministic assertions (JSON validity, regex patterns, forbidden tokens) first before triggering LLM referee calls.
+- **Strict Pydantic Rubrics**: Avoid asking judge models for free-form scores. Use structured output schemas with bounded ranges (`ge=0.0, le=1.0`) and required justification fields.
+- **Automated CI Merge Gates**: Integrate evaluation benchmarks into GitHub Actions pull requests to block prompt regressions before deployment.
+- **Telemetry-Driven Datasets**: Route production edge cases directly into golden benchmark datasets to maintain high test coverage over time.

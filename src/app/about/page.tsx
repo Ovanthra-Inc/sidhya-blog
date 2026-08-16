@@ -72,7 +72,7 @@ export default function AboutPage() {
                 Contact Me (Gmail)
               </a>
               <a
-                href="https://github.com"
+                href="https://github.com/sidhyaashu"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-100 text-gray-800 text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors"

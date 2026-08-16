@@ -2,7 +2,7 @@
 title: "Autonomous AI DevOps Agents Part 5: eBPF Kernel Observability & Real-Time Anomaly Triage"
 description: "Combine eBPF Linux kernel probes with LLM anomaly detection to pinpoint silent network packet drops, socket latency spikes, and CPU throttling."
 slug: "ai-devops-agents-part-5-ebpf-kernel-observability"
-date: "2026-08-14"
+date: "2026-07-03"
 author: "Asutosh Sidhya"
 category: "DevOps"
 tags:
@@ -16,96 +16,104 @@ featured: false
 draft: false
 ---
 
-# Autonomous AI DevOps Agents Part 5: eBPF Kernel Observability & Real-Time Anomaly Triage
+# eBPF Kernel Observability & Real-Time Anomaly Triage
 
-Traditional metrics-based monitoring relies on user-space HTTP instrumentation and log parsing. However, silent failure modes—such as **kernel socket queue drops**, TCP retransmissions, or CPU cgroup throttling—remain completely invisible to standard application monitors.
+User-space application metrics and HTTP access logs often miss the root causes of degraded distributed systems: **kernel socket buffer overflows**, TCP retransmissions, and silent CPU cgroup throttling happen beneath application runtimes.
 
-In Part 5 of our series, we combine **eBPF (Extended Berkeley Packet Filter)** kernel probes with LLM anomaly triage to achieve zero-overhead kernel observability.
+By running **eBPF (Extended Berkeley Packet Filter)** probes directly in the Linux kernel, telemetry agents capture system call timings and network drops with sub-microsecond latency and negligible CPU overhead (~1%).
 
 > [!IMPORTANT]
-> eBPF runs directly inside the Linux kernel at near-zero CPU overhead (~1%), allowing continuous tracking of every system call and network packet without modifying application code.
+> eBPF instruments the kernel safely without modifying kernel source code or loading unstable external kernel modules. Probes are verified by the in-kernel eBPF verifier before execution.
 
 ---
 
-## 1. eBPF Kernel-to-Agent Architecture
+## 1. eBPF Kernel Telemetry Architecture
 
 ```mermaid
 graph TD
-    SubGraph1[Linux Kernel Space] -->|eBPF Probes / Cilium| Maps[eBPF Ring Buffer Maps]
-    Maps -->|User Space Consumer| Aggregator[eBPF Telemetry Collector]
-    Aggregator -->|Vectorized Signals| Agent[Observability AI Agent]
-    Agent -->|Cross-Correlate| TraceDB[Distributed Tracing / OpenTelemetry]
-    TraceDB -->|Contextual Analysis| LLM[LLM Anomaly Engine]
-    LLM -->|Diagnostic Report| Slack[SRE Alert & Root Cause Summary]
+    classDef kernelStyle fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef agentStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef outStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
+
+    Kernel[Linux Kernel Space: TCP & Syscall Probes] -->|Ring Buffer Perf Events| Maps[eBPF Ring Buffer Maps]:::kernelStyle
+    Maps -->|User-Space Stream Consumer| Daemon[Node eBPF Telemetry Daemon]:::kernelStyle
+    
+    Daemon -->|Vectorized Signals| Agent[Observability AI Agent]:::agentStyle
+    Agent -->|Cross-Correlate with OpenTelemetry| OTel[(Distributed Tracing Backend)]:::agentStyle
+    
+    Agent --> AnomalyCheck{Anomaly Classifier}:::agentStyle
+    AnomalyCheck -->|High TCP Drops Detected| SRETriage[Post Root-Cause Analysis to Slack]:::outStyle
+    AnomalyCheck -->|Kernel Normal| Metrics[(Prometheus Metrics Sink)]:::outStyle
 ```
 
 ---
 
-## 2. Python eBPF Telemetry Processor with Pydantic
+## 2. Python eBPF Telemetry Event Processor with Pydantic
+
+Below is the Python telemetry processor configured to ingest signals from eBPF TCP tracepoints (`tracepoint:tcp:tcp_retransmit_skb`):
 
 ```python
 from pydantic import BaseModel, Field
+from typing import Optional
 
-class EBPFKernelSignal(BaseModel):
-    pid: int = Field(..., description="Process ID")
-    comm: str = Field(..., description="Process name e.g. node, python, envoy")
-    event_type: str = Field(..., description="e.g. TCP_RETRANSMIT, CGROUP_THROTTLED")
-    latency_us: int = Field(..., description="Kernel delay in microseconds")
-    socket_drop_count: int = Field(0, description="Dropped packet count")
+class KernelNetworkSignal(BaseModel):
+    pid: int = Field(description="Process identifier emitting system calls.")
+    comm: str = Field(description="Command name e.g. envoy, node, python3")
+    source_ip: str
+    dest_ip: str
+    dest_port: int
+    retransmit_count: int = Field(ge=0)
+    kernel_latency_us: int = Field(description="Socket queue latency in microseconds.")
 
-class AnomalyDiagnostic(BaseModel):
-    is_anomaly: bool
-    root_cause: str
-    confidence: float
-    recommended_tuning: str
+class AnomalyVerdict(BaseModel):
+    is_critical_anomaly: bool
+    severity: str
+    root_cause_summary: str
+    recommended_kernel_tuning: Optional[str] = None
 
-def analyze_kernel_signal(signal: EBPFKernelSignal) -> AnomalyDiagnostic:
-    """Analyzes eBPF kernel event signals for non-obvious performance degradation."""
-    if signal.event_type == "TCP_RETRANSMIT" and signal.latency_us > 50000:
-        return AnomalyDiagnostic(
-            is_anomaly=True,
-            root_cause=f"High TCP retransmission latency ({signal.latency_us / 1000}ms) in process {signal.comm} (PID {signal.pid}).",
-            confidence=0.96,
-            recommended_tuning="Adjust net.ipv4.tcp_rmem buffer size and inspect upstream VPC router queues."
+def evaluate_kernel_telemetry(signal: KernelNetworkSignal) -> AnomalyVerdict:
+    """
+    Evaluates kernel network signals to detect upstream VPC congestion or buffer exhaustion.
+    """
+    # Anomaly Rule: Repeated TCP retransmissions with high socket latency
+    if signal.retransmit_count > 10 and signal.kernel_latency_us > 40000:
+        return AnomalyVerdict(
+            is_critical_anomaly=True,
+            severity="CRITICAL",
+            root_cause_summary=(
+                f"Severe TCP retransmission spike ({signal.retransmit_count} drops) detected on "
+                f"process '{signal.comm}' (PID {signal.pid}) routing to {signal.dest_ip}:{signal.dest_port}."
+            ),
+            recommended_kernel_tuning=(
+                "Inspect upstream VPC routing tables, increase net.core.rmem_max, "
+                "and verify downstream endpoint health."
+            )
         )
-    
-    return AnomalyDiagnostic(
-        is_anomaly=False,
-        root_cause="Normal kernel operational telemetry.",
-        confidence=0.99,
-        recommended_tuning="No action required."
+
+    return AnomalyVerdict(
+        is_critical_anomaly=False,
+        severity="INFO",
+        root_cause_summary="Kernel networking parameters operating within normal baseline."
     )
-
-signal = EBPFKernelSignal(
-    pid=4082,
-    comm="envoy",
-    event_type="TCP_RETRANSMIT",
-    latency_us=68000,
-    socket_drop_count=14
-)
-
-diag = analyze_kernel_signal(signal)
-print(f"[eBPF AI Agent] Anomaly Detected: {diag.is_anomaly}")
-print(f" -> Root Cause: {diag.root_cause}")
-print(f" -> Tuning Recommendation: {diag.recommended_tuning}")
 ```
 
 ---
 
 ## 3. Telemetry Method Comparison
 
-| Metric Type | Log Scraper (Promtail) | User Space APM (Datadog) | eBPF Kernel Probes |
+| Capability | Log Scraping (Promtail/Fluentd) | User-Space APM (Datadog/NewRelic) | eBPF Kernel Probes |
 | :--- | :--- | :--- | :--- |
-| **CPU Overhead** | High (5–15%) | Medium (3–8%) | **Near Zero (~1%)** |
-| **Kernel Visibility** | None | Limited | **Full System Call & TCP Socket Layer** |
-| **App Code Modifications** | Required (Logging) | Required (SDK tracing) | **Zero (No code changes needed)** |
-| **Detection Speed** | Seconds to Minutes | 10–30 Seconds | **Real-Time (Microseconds)** |
+| **CPU Overhead** | High (5–15% CPU) | Medium (3–8% CPU) | **Near Zero (~1% CPU)** |
+| **Visibility Scope** | Application logs only | Instrument-supported frameworks | **Full System Calls & Network Sockets** |
+| **Code Modification** | Logging library imports | SDK wrapping required | **Zero application changes required** |
+| **Detection Latency** | Seconds to Minutes | 10–30 Seconds | **Real-Time (Microseconds)** |
 
 ---
 
-## 4. Key Takeaways
+## Key Takeaways
 
-1. **Kernel-Level Precision**: eBPF exposes low-level system call delays and network queue packet drops before they degrade user HTTP responses.
-2. **Zero Code Overhead**: Instantly monitors legacy or third-party container images without modifying code base imports.
+- **Low-Overhead Introspection**: eBPF provides kernel-level visibility without application code modifications or performance penalties.
+- **Deep Failure Detection**: Intercepting socket drops and cgroup throttle events catches silent performance degradation before user-facing latency spikes appear.
+- **Contextual Correlation**: Pairing eBPF kernel events with OpenTelemetry traces pinpoints the exact microservice and PID causing cluster-wide network saturation.
 
-👉 **[Continue to Part 6: FinOps AI Agents & Dynamic GPU Cluster Cost Optimization →](/posts/ai-devops-agents-part-6-finops-gpu-cost-optimization)**
+**[Continue to Part 6: FinOps Agents & Dynamic GPU Cluster Cost Optimization →](/posts/ai-devops-agents-part-6-finops-gpu-cost-optimization)**

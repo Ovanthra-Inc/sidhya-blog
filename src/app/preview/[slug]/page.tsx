@@ -22,7 +22,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
     <div className="flex flex-col min-h-screen bg-white">
       {/* Live Preview Indicator Banner */}
       <div className="bg-amber-500 text-black px-4 py-2 text-center text-xs font-bold uppercase tracking-wider">
-        ⚡ MDX Live Preview Mode — Viewing &quot;{post.title}&quot; {post.draft ? "(Draft)" : "(Published)"}
+        MDX Live Preview Mode — Viewing &quot;{post.title}&quot; {post.draft ? "(Draft)" : "(Published)"}
       </div>
 
       <Navbar />

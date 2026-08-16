@@ -1,0 +1,171 @@
+---
+title: "Pydantic AI Framework Guide: Production Type-Safe Agent Engineering"
+description: "Master Pydantic AI — covering type-safe agent schemas, dependency injection, model-agnostic tooling, structured result validation, and test harness mocks."
+slug: "pydantic-ai-framework-guide"
+date: "2026-08-06"
+author: "Asutosh Sidhya"
+category: "Frameworks"
+tags:
+  - Frameworks
+  - Pydantic AI
+  - Python
+  - Type Safety
+  - AI
+cover: "/posts/ai-agent-cover.png"
+featured: false
+draft: false
+---
+
+# Pydantic AI Framework Guide: Production Type-Safe Agent Engineering
+
+Many existing Python AI agent frameworks introduce excessive boilerplate, obscure prompt templates, and loose runtime typing. When deploying mission-critical AI services in FastAPI or Django backends, engineers need the same strict type-checking, dependency injection, and data validation that Pydantic brings to standard Python engineering.
+
+**Pydantic AI** (built by the official Pydantic team) is a lightweight, production-grade agent framework designed to make building GenAI applications as reliable and type-safe as building REST APIs.
+
+---
+
+## 1. Core Architecture & Mental Model
+
+Pydantic AI centers on three foundational principles:
+
+1. **`Agent[Deps, ResultType]`**: A generic, fully typed Agent class where both injected dependencies (`Deps`) and expected result schemas (`ResultType`) are validated by Pydantic at static analysis and runtime.
+2. **Dependency Injection (`deps_type`)**: Injects runtime context (database connection pools, API clients, user authentication sessions) safely into tool calls without global state.
+3. **Structured Validation with Retries**: If a model returns a malformed JSON payload failing Pydantic validation, Pydantic AI automatically passes the validation error back to the model for self-correction.
+
+```mermaid
+graph TD
+    classDef clientStyle fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef agentStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef valStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
+
+    Request[Incoming User Request] --> Agent[Pydantic AI Agent: Agent[Deps, ResultType]]:::agentStyle
+    
+    subgraph ExecutionContext [Dependency Injection & Tools]
+        Deps[(Database Pool / User Session)]
+        Tools[Typed Tools: @agent.tool]
+    end
+    
+    Agent --> ExecutionContext
+    ExecutionContext --> LLM[LLM API: OpenAI / Anthropic / Gemini]:::clientStyle
+    
+    LLM --> Validator{Pydantic Schema Validation}:::valStyle
+    Validator -- ValidationError --> LLM
+    Validator -- Valid Model --> Return[Typed Output Model Instance]:::valStyle
+```
+
+---
+
+## 2. Installation & Quick Setup
+
+```bash
+pip install pydantic-ai
+```
+
+Set your provider API key:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+---
+
+## 3. Recommended Production Folder Structure
+
+```text
+src/
+├── schemas/
+│   └── models.py        # Pydantic output schemas
+├── dependencies/
+│   └── context.py       # Database & auth dependency dataclasses
+├── tools/
+│   └── db_tools.py      # Typed agent tools with RunContext
+├── agent.py             # Agent definition & system prompts
+└── main.py              # FastAPI endpoint integration
+```
+
+---
+
+## 4. Complete, Runnable Starter Project in Python
+
+Below is a complete, typed Python agent demonstrating dependency injection, tool invocation, and structured result extraction:
+
+```python
+from dataclasses import dataclass
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent, RunContext
+
+# 1. Define Injected Dependencies
+@dataclass
+class DatabaseContext:
+    user_id: str
+    is_premium: bool
+
+# 2. Define Structured Output Schema
+class InfrastructureAuditResult(BaseModel):
+    server_id: str
+    overall_health: str = Field(description="HEALTHY, DEGRADED, or CRITICAL")
+    active_cpu_percent: float
+    recommended_action: str
+
+# 3. Initialize Typed Agent
+agent = Agent(
+    "openai:gpt-4o-mini",
+    deps_type=DatabaseContext,
+    result_type=InfrastructureAuditResult,
+    system_prompt="You are an expert infrastructure auditing agent. Inspect server health metrics and output a verified report.",
+)
+
+# 4. Define Type-Safe Tool with Injected RunContext
+@agent.tool
+async def query_server_metrics(ctx: RunContext[DatabaseContext], server_id: str) -> dict:
+    """Queries live server metrics for the authorized user."""
+    print(f"[Tool] Querying for user: {ctx.deps.user_id} (Premium: {ctx.deps.is_premium})")
+    return {
+        "server_id": server_id,
+        "cpu_load": 78.4,
+        "memory_used_gb": 12.1,
+        "error_count_last_hr": 2,
+    }
+
+# 5. Run the Agent
+async def main():
+    ctx = DatabaseContext(user_id="usr_prod_9921", is_premium=True)
+    
+    result = await agent.run(
+        "Run an audit on server node 'srv-us-east-4a'.",
+        deps=ctx,
+    )
+    
+    # result.data is guaranteed to be an instance of InfrastructureAuditResult
+    print("\n--- Typed Result Output ---")
+    print(f"Server: {result.data.server_id}")
+    print(f"Health: {result.data.overall_health}")
+    print(f"CPU Load: {result.data.active_cpu_percent}%")
+    print(f"Action: {result.data.recommended_action}")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+---
+
+## 5. Architectural Tradeoffs Matrix
+
+| Feature | Generic Prompt Wrappers | Pydantic AI |
+| :--- | :--- | :--- |
+| **Type Safety** | Runtime `dict` lookups | **Full Static IDE Type Checking (`mypy` / `pyright`)** |
+| **Dependency Injection** | Global variables / singletons | **Native `RunContext[Deps]` dependency passing** |
+| **Validation Error Handling** | Crash or unhandled exception | **Automatic Model Self-Correction Loop** |
+| **Testing & Mocking** | Complex monkeypatching | **Built-in `TestModel` for zero-cost unit testing** |
+
+---
+
+## 6. When to Use vs. When to Avoid
+
+### Choose Pydantic AI When:
+- You are building backend Python services (FastAPI, Django, Celery) requiring strict type safety and zero magical prompt abstractions.
+- You need unit-testable AI agents with clean dependency injection.
+
+### Avoid Pydantic AI When:
+- You are building Next.js/React frontend streaming applications (use **Vercel AI SDK** instead).

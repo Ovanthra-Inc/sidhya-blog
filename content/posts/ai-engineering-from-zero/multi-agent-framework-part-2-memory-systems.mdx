@@ -2,7 +2,7 @@
 title: "Building a Multi-Agent AI Framework (Part 2/5): Hybrid Memory & Context Pruning"
 description: "Step 2 in our 5-part masterclass: Implementing short-term token-sliding windows, vector memory indexing, and dynamic context pruning."
 slug: "multi-agent-framework-part-2-memory-systems"
-date: "2026-08-08"
+date: "2026-03-24"
 author: "Asutosh Sidhya"
 category: "AI"
 tags: ["AI Agents", "Memory Systems", "Vector Search", "TypeScript", "RAG"]
@@ -12,7 +12,7 @@ readTime: "11 min read"
 ---
 
 > [!NOTE]
-> **5-Part Series Navigation**: This is **Part 2** of our continuous journey *Building a Multi-Agent AI Framework from Scratch*.
+> **5-Part Masterclass Navigation**:
 > - [Part 1: Core Event Loop & State Machine](/posts/multi-agent-framework-part-1-architecture)
 > - **Part 2: Hybrid Memory & Context Pruning** (You are here)
 > - [Part 3: Multi-Agent Teams & Orchestration](/posts/multi-agent-framework-part-3-orchestration)
@@ -21,16 +21,14 @@ readTime: "11 min read"
 
 ---
 
-# Recapping Part 1 & The Problem of Memory Bloat
+# Context Window Management in Long-Running Agents
 
-In **[Part 1](/posts/multi-agent-framework-part-1-architecture)**, we constructed our core `AgentRuntime` event loop and state machine. While our agent can execute tools and iterate deterministically, prolonged autonomous runs reveal a critical production bottleneck: **Context Window Saturation**.
+In [Part 1](/posts/multi-agent-framework-part-1-architecture), we built the core `AgentRuntime` state machine. However, prolonged autonomous runs quickly hit **context window saturation**:
 
-Every tool output, raw JSON response, and intermediate thought string accumulates in the `messages` array. Left unchecked:
-- LLM API costs scale quadratically with context length.
-- Latency increases significantly (Time-to-First-Token degrades).
-- Older critical instructions get pushed past the context window edge.
+- **Quadratic Cost Growth**: Accumulating raw JSON payloads from hundreds of tool executions rapidly inflates input token costs.
+- **Degraded Reasoning**: When intermediate tool noise overwhelms prompt context, models suffer from the "lost-in-the-middle" effect and forget initial system constraints.
 
-In this guide, we will design a **Hybrid Memory System** combining short-term working context, semantic vector retrieval (long-term memory), and an automatic **Token Pruner**.
+To sustain multi-step autonomy, production agents require a **Hybrid Memory Architecture** separating short-term working context from persistent episodic vector storage.
 
 ---
 
@@ -38,173 +36,172 @@ In this guide, we will design a **Hybrid Memory System** combining short-term wo
 
 ```mermaid
 flowchart TD
-    UserQuery[User Input & Active Goal] --> MemoryManager[Memory Manager Engine]
+    UserQuery[User Goal & Prompt] --> MemoryManager[Agent Memory Manager]
 
     subgraph WorkingMemory[Short-Term Working Memory]
-        SystemPrompt[System Instructions]
-        SlidingWindow[Sliding Message History - Last N Turns]
-        Pruner[Dynamic Token Pruner]
+        SystemPrompt[System Directives & Core Tools]
+        SlidingWindow[Sliding Message History: Last N Turns]
+        Pruner[Token Pruner & Tool Output Compressor]
     end
 
-    subgraph LongTermMemory[Long-Term Episodic Memory]
-        VectorStore[(LanceDB Vector Store)]
-        Embeddings[Semantic Embedding Index]
+    subgraph EpisodicMemory[Long-Term Episodic Vector Memory]
+        Embeddings[OpenAI text-embedding-3-small]
+        VectorStore[(Semantic Vector Index)]
     end
 
     MemoryManager --> WorkingMemory
-    MemoryManager <--> LongTermMemory
-    Pruner --> OptimizedPrompt[Optimized Prompt Context]
-    OptimizedPrompt --> LLM[LLM Provider API]
+    MemoryManager <--> EpisodicMemory
+    Pruner --> CompactPrompt[Token-Optimized Context]
+    CompactPrompt --> LLM[LLM Provider API]
 ```
 
 ---
 
-## Step 1: Implementing the Token Pruner Engine
+## 1. Implementing the Dynamic Token Pruner
 
-The `TokenPruner` measures the token consumption of active messages and safely truncates intermediate tool outputs while retaining System Prompts and recent turn messages.
+The `TokenPruner` preserves system instructions and recent conversation turns while compressing intermediate tool outputs that exceed token budgets:
 
 ```typescript
 import { AgentMessage } from "./types";
 
 export interface PrunerOptions {
   maxTokenBudget: number;
-  systemMessageReserveTokens: number;
   preserveLastNMessages: number;
 }
 
 export class TokenPruner {
-  constructor(private options: PrunerOptions) {}
+  constructor(private options: PrunerOptions = { maxTokenBudget: 6000, preserveLastNMessages: 6 }) {}
 
-  /**
-   * Fast token estimation fallback (1 token ≈ 4 characters)
-   */
   public estimateTokens(text: string): number {
+    // Fast heuristic estimation (~4 chars per token)
     return Math.ceil(text.length / 4);
   }
 
   public prune(messages: AgentMessage[]): AgentMessage[] {
     const systemMessages = messages.filter((m) => m.role === "system");
-    const nonSystemMessages = messages.filter((m) => m.role !== "system");
+    const conversationMessages = messages.filter((m) => m.role !== "system");
 
-    if (nonSystemMessages.length <= this.options.preserveLastNMessages) {
+    if (conversationMessages.length <= this.options.preserveLastNMessages) {
       return messages;
     }
 
-    const recentMessages = nonSystemMessages.slice(-this.options.preserveLastNMessages);
-    const candidateMessages = nonSystemMessages.slice(0, -this.options.preserveLastNMessages);
+    const recentTurns = conversationMessages.slice(-this.options.preserveLastNMessages);
+    const olderHistory = conversationMessages.slice(0, -this.options.preserveLastNMessages);
 
-    // Calculate currently used tokens
-    let usedTokens = systemMessages.reduce(
-      (acc, m) => acc + this.estimateTokens(m.content),
-      0
-    );
-    usedTokens += recentMessages.reduce(
-      (acc, m) => acc + this.estimateTokens(m.content),
-      0
-    );
+    let usedTokens = systemMessages.reduce((acc, m) => acc + this.estimateTokens(m.content), 0);
+    usedTokens += recentTurns.reduce((acc, m) => acc + this.estimateTokens(m.content), 0);
 
-    const prunedCandidates: AgentMessage[] = [];
+    const retainedOldMessages: AgentMessage[] = [];
 
-    // Select older candidate messages that fit within remaining token budget
-    for (let i = candidateMessages.length - 1; i >= 0; i--) {
-      const msg = candidateMessages[i];
-      const tokens = this.estimateTokens(msg.content);
+    for (let i = olderHistory.length - 1; i >= 0; i--) {
+      const msg = olderHistory[i];
+      const tokenCost = this.estimateTokens(msg.content);
 
-      if (usedTokens + tokens <= this.options.maxTokenBudget) {
-        prunedCandidates.unshift(msg);
-        usedTokens += tokens;
+      if (usedTokens + tokenCost <= this.options.maxTokenBudget) {
+        retainedOldMessages.unshift(msg);
+        usedTokens += tokenCost;
       } else if (msg.role === "tool") {
-        // Compress tool outputs instead of complete deletion
-        const compressedContent = `[Tool Output Summarized: ${msg.content.slice(0, 100)}...]`;
-        const compressedTokens = this.estimateTokens(compressedContent);
+        // Compress verbose tool JSON payloads into concise summaries
+        const compressed = `[Output Truncated: ${msg.content.slice(0, 120)}...]`;
+        const compressedCost = this.estimateTokens(compressed);
 
-        if (usedTokens + compressedTokens <= this.options.maxTokenBudget) {
-          prunedCandidates.unshift({ ...msg, content: compressedContent });
-          usedTokens += compressedTokens;
+        if (usedTokens + compressedCost <= this.options.maxTokenBudget) {
+          retainedOldMessages.unshift({ ...msg, content: compressed });
+          usedTokens += compressedCost;
         }
       }
     }
 
-    return [...systemMessages, ...prunedCandidates, ...recentMessages];
+    return [...systemMessages, ...retainedOldMessages, ...recentTurns];
   }
 }
 ```
 
 ---
 
-## Step 2: Long-Term Memory Retrieval with Vector Indexing
+## 2. Long-Term Episodic Memory with OpenAI Embeddings
 
-Short-term memory only retains current turn context. For persistent long-term knowledge across user sessions, we implement a `VectorMemoryStore` adapter:
+For persistent cross-session memory, we embed and query past task executions using dense vector search:
 
 ```typescript
-export interface MemoryRecord {
+import OpenAI from "openai";
+
+export interface EpisodicMemoryRecord {
   id: string;
   sessionId: string;
-  content: string;
+  taskGoal: string;
+  summary: string;
   embedding: number[];
   timestamp: number;
 }
 
-export class VectorMemoryStore {
-  private records: MemoryRecord[] = [];
+export class EpisodicMemoryStore {
+  private client: OpenAI;
+  private records: EpisodicMemoryRecord[] = [];
 
-  public async saveEpisodicMemory(sessionId: string, content: string): Promise<void> {
-    const embedding = await this.mockEmbedText(content);
+  constructor() {
+    this.client = new OpenAI();
+  }
+
+  private async generateEmbedding(text: string): Promise<number[]> {
+    const response = await this.client.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+    });
+    return response.data[0].embedding;
+  }
+
+  public async saveEpisode(sessionId: string, taskGoal: string, summary: string): Promise<void> {
+    const embedding = await this.generateEmbedding(`${taskGoal}\n${summary}`);
     this.records.push({
-      id: `mem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `mem_${Date.now()}`,
       sessionId,
-      content,
+      taskGoal,
+      summary,
       embedding,
       timestamp: Date.now(),
     });
   }
 
-  public async searchRelevantMemories(query: string, topK: number = 3): Promise<string[]> {
-    const queryEmbedding = await this.mockEmbedText(query);
+  public async searchRelevantContext(query: string, topK: number = 3): Promise<string[]> {
+    const queryVector = await this.generateEmbedding(query);
 
-    // Compute Cosine Similarity
     const scored = this.records.map((rec) => ({
-      content: rec.content,
-      score: this.cosineSimilarity(queryEmbedding, rec.embedding),
+      summary: rec.summary,
+      similarity: this.cosineSimilarity(queryVector, rec.embedding),
     }));
 
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topK).map((item) => item.content);
+    scored.sort((a, b) => b.similarity - a.similarity);
+    return scored.slice(0, topK).map((r) => r.summary);
   }
 
   private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    const dotProduct = vecA.reduce((sum, val, i) => sum + val * vecB[i], 0);
-    const magA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0));
-    const magB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0));
-    if (magA === 0 || magB === 0) return 0;
-    return dotProduct / (magA * magB);
-  }
-
-  private async mockEmbedText(text: string): Promise<number[]> {
-    // Generate deterministic 8-dimensional mock embedding vector
-    const vector = new Array(8).fill(0);
-    for (let i = 0; i < text.length; i++) {
-      vector[i % 8] += text.charCodeAt(i) / 255;
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+      dot += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
     }
-    return vector;
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
   }
 }
 ```
 
 ---
 
+## 3. Production Best Practices
+
 > [!IMPORTANT]
-> **Production Best Practice**: Always separate working memory (active execution history) from long-term memory (vector index). Feeding raw search hits directly into System Prompts creates prompt injection vectors if retrieved memories contain un-sanitized user strings.
+> **Isolate Working Context from Injected Memory**: Never blindly inject raw episodic vector search hits into the system prompt. Always label injected context explicitly under a `### Prior Historical Context` markdown header to prevent prompt injection and model confusion.
 
 ---
 
-## What's Coming Next in Part 3?
+## Key Takeaways
 
-With deterministic state control (Part 1) and hybrid memory management (Part 2) implemented, a single isolated agent still struggles when tasked with complex multi-domain goals (e.g. searching codebase docs, running unit tests, and drafting documentation simultaneously).
+- **Token Budget Ceilings**: Strict pruner limits prevent runaway token accumulation during multi-turn agent execution loops.
+- **Graceful Payload Compression**: Truncating older intermediate tool payloads while preserving the most recent turns maintains prompt coherence.
+- **Episodic Vector Separation**: Using OpenAI `text-embedding-3-small` embeddings allows past run lessons to be queried semantically without bloating active working memory.
 
-In **[Part 3: Multi-Agent Teams & Orchestration](/posts/multi-agent-framework-part-3-orchestration)**, we will build:
-1. **Supervisor Routing Pattern**: A lead agent delegating sub-tasks to specialized sub-agents.
-2. **Parallel Worker Fan-Out**: Running multiple worker agents concurrently.
-3. **Dynamic Handoff Protocol**: Handoff state transfer between specialized agent workers!
-
-👉 **[Continue to Part 3: Multi-Agent Teams & Orchestration →](/posts/multi-agent-framework-part-3-orchestration)**
+**[Continue to Part 3: Multi-Agent Teams & Orchestration →](/posts/multi-agent-framework-part-3-orchestration)**

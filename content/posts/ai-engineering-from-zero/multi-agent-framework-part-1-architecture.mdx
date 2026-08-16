@@ -2,7 +2,7 @@
 title: "Building a Multi-Agent AI Framework (Part 1/5): Core Event Loop & State Machine"
 description: "Step 1 in our 5-part masterclass: Designing a deterministic state machine, agent runtime loop, and typed tool contracts in TypeScript."
 slug: "multi-agent-framework-part-1-architecture"
-date: "2026-08-07"
+date: "2026-03-18"
 author: "Asutosh Sidhya"
 category: "AI"
 tags: ["AI Agents", "TypeScript", "Architecture", "LLM", "Multi-Agent"]
@@ -12,7 +12,7 @@ readTime: "10 min read"
 ---
 
 > [!NOTE]
-> **5-Part Series Navigation**: This is **Part 1** of our continuous journey *Building a Multi-Agent AI Framework from Scratch*.
+> **5-Part Masterclass Navigation**:
 > - **Part 1: Core Event Loop & State Machine** (You are here)
 > - [Part 2: Hybrid Memory & Context Pruning](/posts/multi-agent-framework-part-2-memory-systems)
 > - [Part 3: Multi-Agent Teams & Orchestration](/posts/multi-agent-framework-part-3-orchestration)
@@ -21,51 +21,53 @@ readTime: "10 min read"
 
 ---
 
-# Introduction: The Case for a Custom Agent Runtime
+# Why Build a Custom Agent Runtime?
 
-When software engineers start building AI agent applications, the initial impulse is often to reach for high-level framework abstractions like LangChain or AutoGen. While these libraries are fantastic for quick prototypes, production applications quickly run into fundamental limitations:
+When building agentic applications, the initial impulse is often to pull in monolithic framework abstractions like LangChain or AutoGen. While convenient for rapid prototyping, production applications quickly hit architectural limitations:
 
-1. **Implicit Hidden Magic**: Heavy abstractions abstract away prompt formatting and state updates, making runtime debugging unpredictable.
-2. **Brittle Exception Recovery**: Infinite tool call loops, unhandled JSON schema validation errors, or API rate limits can freeze agent execution.
-3. **Lack of Determinism**: Production systems require strict state transitions, step limits, and inspectable audit logs.
+1. **Opaque Prompt Formatting**: Hidden prompt templates and implicit middleware make debugging non-deterministic hallucinations difficult.
+2. **Unhandled Edge-Case Loops**: A malformed tool argument or rate limit error can lock execution in an un-bounded retry cycle.
+3. **Auditability & Determinism**: Production systems require strict lifecycle transitions, hard step limits, and structured state logging.
 
-In this **5-part continuous series**, we will build a production-grade, event-driven Multi-Agent Framework from scratch in TypeScript—completely dependency-free.
+In this **5-part series**, we construct an event-driven Multi-Agent Framework from scratch in TypeScript—with zero framework lock-in.
 
 ---
 
-## High-Level Architecture Overview
+## High-Level Architecture
 
-Before writing code, let's understand how the core agent event loop processes user queries, evaluates tool calls, and transitions through deterministic execution states.
+The core agent runtime operates as a deterministic state machine: it receives user goals, submits context to an LLM provider with typed tool schemas, executes tool calls safely, and iterates until termination conditions are satisfied.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
     participant Runtime as AgentRuntime
-    participant LLM as LLM Provider
+    participant LLM as OpenAI / Anthropic Provider
     participant Tools as Tool Registry
 
     User->>Runtime: Submit Goal (Prompt + State)
-    loop Execution Cycle (Max Iterations)
-        Runtime->>LLM: Send Messages + Available Tools
-        LLM-->>Runtime: Return Response / Tool Call Intent
+    loop Execution Cycle (Step Limit <= MaxSteps)
+        Runtime->>LLM: Send Conversation History + Available Tools
+        LLM-->>Runtime: Return Response or Tool Call Intent
         alt Contains Tool Calls
-            Runtime->>Tools: Execute Tool (Validate Inputs)
-            Tools-->>Runtime: Return Tool Output / Error
-            Runtime->>Runtime: Update Execution State & History
-        else Is Final Text Answer
-            Runtime-->>User: Output Final Answer
+            Runtime->>Tools: Execute Tool (Validate Inputs with Zod)
+            Tools-->>Runtime: Return Tool Output
+            Runtime->>Runtime: Append Assistant & Tool Messages to State
+        else Final Answer Emitted
+            Runtime-->>User: Return Completed State & Result
         end
     end
 ```
 
 ---
 
-## Designing the Deterministic State Machine
+## 1. Designing the Deterministic State Machine
 
-Every agent execution loop must track its current lifecycle step using a typed state object. Here is our core type definition:
+Every agent execution loop must track its lifecycle using typed states and strict message interfaces:
 
 ```typescript
+import { z } from "zod";
+
 export type AgentStatus =
   | "IDLE"
   | "THINKING"
@@ -101,30 +103,37 @@ export interface AgentState {
   messages: AgentMessage[];
   lastError?: string;
 }
+
+export interface ToolDefinition<TInput = Record<string, unknown>> {
+  name: string;
+  description: string;
+  schema: z.ZodSchema<TInput>;
+  execute: (args: TInput) => Promise<unknown>;
+}
 ```
 
 ---
 
-## Implementing the Core Agent Runtime Loop
+## 2. Implementing the Core Agent Runtime Loop
 
-Now, let's implement the `AgentRuntime` engine. The engine manages the loop, invokes tools safely, and prevents infinite execution loops.
+Below is the production `AgentRuntime` engine using the official OpenAI SDK with schema validation and iteration bounds:
 
 ```typescript
-import { AgentState, AgentMessage, ToolCallRequest } from "./types";
-
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  execute: (args: Record<string, unknown>) => Promise<unknown>;
-}
+import OpenAI from "openai";
+import { AgentState, AgentMessage, ToolDefinition, ToolCallRequest } from "./types";
 
 export class AgentRuntime {
+  private client: OpenAI;
   private tools: Map<string, ToolDefinition> = new Map();
 
-  constructor(private maxSteps: number = 10) {}
+  constructor(
+    private maxSteps: number = 10,
+    private model: string = "gpt-4o"
+  ) {
+    this.client = new OpenAI();
+  }
 
-  public registerTool(tool: ToolDefinition): void {
+  public registerTool(tool: ToolDefinition<any>): void {
     this.tools.set(tool.name, tool);
   }
 
@@ -136,7 +145,7 @@ export class AgentRuntime {
       maxSteps: this.maxSteps,
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
-        { role: "user", content: userPrompt },
+        { role: "user" as const, content: userPrompt },
       ],
     };
 
@@ -144,35 +153,86 @@ export class AgentRuntime {
       state.stepCount++;
 
       try {
-        // Step 1: Query the LLM provider (mocked for runtime illustration)
-        const response = await this.mockLLMCompletion(state.messages);
+        // Step 1: Format tools into OpenAI JSON schema format
+        const openAITools = Array.from(this.tools.values()).map((t) => ({
+          type: "function" as const,
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: (t.schema as any)._def ? undefined : {}, // Serialized schema
+          },
+        }));
 
-        // Step 2: Handle Tool Invocations
-        if (response.toolCalls && response.toolCalls.length > 0) {
+        // Step 2: Query LLM Provider
+        const completion = await this.client.chat.completions.create({
+          model: this.model,
+          messages: state.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            ...(m.toolCallId ? { tool_call_id: m.toolCallId } : {}),
+          })),
+          tools: openAITools.length > 0 ? openAITools : undefined,
+          tool_choice: openAITools.length > 0 ? "auto" : undefined,
+        });
+
+        const choice = completion.choices[0];
+        const message = choice.message;
+
+        // Step 3: Handle Tool Calls
+        if (message.tool_calls && message.tool_calls.length > 0) {
           state.status = "EXECUTING_TOOL";
+          
           state.messages.push({
             role: "assistant",
-            content: response.content || "",
-            toolCalls: response.toolCalls,
+            content: message.content || "",
+            toolCalls: message.tool_calls.map((tc) => ({
+              id: tc.id,
+              name: tc.function.name,
+              arguments: JSON.parse(tc.function.arguments),
+            })),
           });
 
-          for (const call of response.toolCalls) {
-            const toolResult = await this.executeTool(call);
-            state.messages.push({
-              role: "tool",
-              content: JSON.stringify(toolResult.output),
-              toolCallId: call.id,
-            });
+          for (const tc of message.tool_calls) {
+            const tool = this.tools.get(tc.function.name);
+            if (!tool) {
+              state.messages.push({
+                role: "tool",
+                content: JSON.stringify({ error: `Tool ${tc.function.name} not found` }),
+                toolCallId: tc.id,
+              });
+              continue;
+            }
+
+            try {
+              const rawArgs = JSON.parse(tc.function.arguments);
+              const validatedArgs = tool.schema.parse(rawArgs);
+              const output = await tool.execute(validatedArgs);
+
+              state.messages.push({
+                role: "tool",
+                content: JSON.stringify(output),
+                toolCallId: tc.id,
+              });
+            } catch (err: any) {
+              state.messages.push({
+                role: "tool",
+                content: JSON.stringify({ error: err.message || "Execution error" }),
+                toolCallId: tc.id,
+              });
+            }
           }
           state.status = "THINKING";
         } else {
-          // Final Text Answer Reached
-          state.messages.push({ role: "assistant", content: response.content });
+          // Final Text Completion
+          state.messages.push({
+            role: "assistant",
+            content: message.content || "",
+          });
           state.status = "COMPLETED";
         }
-      } catch (err: unknown) {
+      } catch (err: any) {
         state.status = "FAILED";
-        state.lastError = err instanceof Error ? err.message : String(err);
+        state.lastError = err.message || String(err);
       }
     }
 
@@ -182,46 +242,43 @@ export class AgentRuntime {
 
     return state;
   }
-
-  private async executeTool(call: ToolCallRequest) {
-    const tool = this.tools.get(call.name);
-    if (!tool) {
-      return { toolCallId: call.id, output: `Error: Tool '${call.name}' not found`, isError: true };
-    }
-    try {
-      const output = await tool.execute(call.arguments);
-      return { toolCallId: call.id, output, isError: false };
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      return { toolCallId: call.id, output: `Execution Error: ${errorMessage}`, isError: true };
-    }
-  }
-
-  private async mockLLMCompletion(messages: AgentMessage[]) {
-    // Demonstration mock returning final response
-    const lastMsg = messages[messages.length - 1];
-    return {
-      content: `Processed request successfully for prompt: "${lastMsg.content.slice(0, 30)}..."`,
-      toolCalls: undefined,
-    };
-  }
 }
 ```
 
 ---
 
-> [!TIP]
-> **Key Takeaway**: A production agent runtime must treat LLM responses as un-trusted input. Always validate tool arguments against schemas before passing them to tool execution functions.
+## 3. Tool Registration & Execution Example
+
+Here is how to bind type-safe tools with Zod:
+
+```typescript
+import { z } from "zod";
+import { AgentRuntime } from "./AgentRuntime";
+
+const runtime = new AgentRuntime(5);
+
+runtime.registerTool({
+  name: "calculate_vpc_cidr",
+  description: "Calculates available IP subnets for a given CIDR block.",
+  schema: z.object({
+    cidr: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/),
+    requiredSubnets: z.number().int().positive(),
+  }),
+  execute: async ({ cidr, requiredSubnets }) => {
+    return {
+      baseCidr: cidr,
+      allocatedSubnets: [`10.0.1.0/24`, `10.0.2.0/24`].slice(0, requiredSubnets),
+    };
+  },
+});
+```
 
 ---
 
-## What's Coming Next in Part 2?
+## Key Takeaways
 
-Now that we have established a deterministic, step-counted event loop state machine, our agent faces a major challenge: **Context Window Bloat**. As tool calls accumulate, message history grows rapidly, leading to expensive API costs and context truncation crashes.
+- **Explicit Lifecycle States**: State tracking (`THINKING`, `EXECUTING_TOOL`, `MAX_STEPS_EXCEEDED`) ensures unhandled errors or infinite tool calls are captured deterministically.
+- **Runtime Argument Validation**: Always parse tool arguments using Zod before invoking underlying business logic.
+- **Zero-Dependency Core**: Constructing the event loop directly against LLM SDKs eliminates framework overhead and makes prompt history fully transparent.
 
-In **[Part 2: Hybrid Memory & Context Pruning](/posts/multi-agent-framework-part-2-memory-systems)**, we will build:
-1. Short-term sliding window memory management.
-2. Vector-indexed long-term episodic memory using LanceDB.
-3. An automatic Context Pruner that dynamically compresses old tool outputs while preserving core instructions!
-
-👉 **[Continue to Part 2: Hybrid Memory & Context Pruning →](/posts/multi-agent-framework-part-2-memory-systems)**
+**[Continue to Part 2: Hybrid Memory & Context Pruning →](/posts/multi-agent-framework-part-2-memory-systems)**

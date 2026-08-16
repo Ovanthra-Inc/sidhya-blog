@@ -2,7 +2,7 @@
 title: "Building a Multi-Agent AI Framework (Part 5/5): Production Evals, Retries & Telemetry"
 description: "Final step in our 5-part masterclass: Implementing exponential backoff retries, LLM-as-a-Judge evals, rate limiting, and OpenTelemetry."
 slug: "multi-agent-framework-part-5-resilience-evals"
-date: "2026-08-11"
+date: "2026-04-14"
 author: "Asutosh Sidhya"
 category: "AI"
 tags: ["AI Agents", "Evals", "Telemetry", "OpenTelemetry", "Production"]
@@ -12,7 +12,7 @@ readTime: "13 min read"
 ---
 
 > [!NOTE]
-> **5-Part Series Navigation**: This is **Part 5** (Final Installment) of our continuous journey *Building a Multi-Agent AI Framework from Scratch*.
+> **5-Part Masterclass Navigation**:
 > - [Part 1: Core Event Loop & State Machine](/posts/multi-agent-framework-part-1-architecture)
 > - [Part 2: Hybrid Memory & Context Pruning](/posts/multi-agent-framework-part-2-memory-systems)
 > - [Part 3: Multi-Agent Teams & Orchestration](/posts/multi-agent-framework-part-3-orchestration)
@@ -21,55 +21,50 @@ readTime: "13 min read"
 
 ---
 
-# Bringing It All Together: Enterprise Production Hardening
+# Hardening Agent Runtimes for Mission-Critical Production
 
-Congratulations on reaching the final part of our **5-part series**!
+Across the preceding four parts, we built:
+1. A deterministic event loop and state machine ([Part 1](/posts/multi-agent-framework-part-1-architecture)).
+2. A hybrid token pruner and episodic vector memory store ([Part 2](/posts/multi-agent-framework-part-2-memory-systems)).
+3. Multi-agent teams with sequential pipelines and fan-out orchestrators ([Part 3](/posts/multi-agent-framework-part-3-orchestration)).
+4. Dynamic MCP tool integration over Stdio transports ([Part 4](/posts/multi-agent-framework-part-4-mcp-protocol)).
 
-Across [Part 1](/posts/multi-agent-framework-part-1-architecture), [Part 2](/posts/multi-agent-framework-part-2-memory-systems), [Part 3](/posts/multi-agent-framework-part-3-orchestration), and [Part 4](/posts/multi-agent-framework-part-4-mcp-protocol), we built:
-1. A deterministic state machine & event runtime loop.
-2. A hybrid short-term & vector long-term memory engine with token pruning.
-3. Multi-agent supervisor & worker team orchestrators.
-4. Model Context Protocol (MCP) tool integration.
-
-Now, we must bridge the final gap between a working framework and an **enterprise-ready production deployment**. In production, external LLM APIs fail with 429 Rate Limits, network timeouts occur, and prompt outputs drift over time.
-
-In this final guide, we will implement:
-1. Exponential backoff with jitter retries & circuit breakers.
-2. An automated **LLM-as-a-Judge Evaluation Engine**.
-3. OpenTelemetry distributed tracing & token cost metering.
+The final requirement for production readiness is **resilience engineering**: mitigating transient 429 rate limit spikes, detecting prompt drift via automated evaluation harnesses, and instrumenting distributed spans with OpenTelemetry.
 
 ---
 
-## Production Resilience & Monitoring Architecture
+## Production Telemetry & Evaluation Architecture
 
 ```mermaid
 flowchart TD
-    UserRequest[Incoming Agent Task] --> CircuitBreaker[Circuit Breaker & Rate Limiter]
+    Task[Incoming Agent Goal] --> Breaker[Circuit Breaker & Rate Limiter]
 
-    subgraph ResilientExecutor[Resilient Execution Engine]
-        RetryLoop[Exponential Backoff + Jitter Loop]
+    subgraph ResilientExecutor[Resilient Executor]
+        RetryLoop[Exponential Backoff + Decorrelated Jitter]
         Runtime[AgentRuntime Engine]
-        Tracer[OpenTelemetry Tracer]
+        OTel[OpenTelemetry Span Collector]
     end
 
-    CircuitBreaker --> RetryLoop
+    Breaker --> RetryLoop
     RetryLoop --> Runtime
-    Runtime <--> Tracer
+    Runtime <--> OTel
 
-    subgraph EvalsSuite[LLM-as-a-Judge Evals Engine]
-        GroundTruth[Ground Truth Test Cases]
-        Judge[LLM Judge Metric Assessor]
-        Report[Accuracy & Cost Scorecard]
+    subgraph EvaluationHarness[Automated Evaluation Suite]
+        Dataset[(Golden Benchmark Test Cases)]
+        Judge[Structured LLM Referee Judge]
+        Report[Regression Scorecard]
     end
 
     Runtime --> Judge
-    GroundTruth --> Judge
+    Dataset --> Judge
     Judge --> Report
 ```
 
 ---
 
-## Step 1: Exponential Backoff & Circuit Breaker Engine
+## 1. Exponential Backoff with Decorrelated Jitter
+
+Network requests to frontier model APIs fail predictably under load. Below is an executor wrapper utilizing decorrelated jitter to prevent thundering herd problems:
 
 ```typescript
 export interface RetryConfig {
@@ -80,141 +75,161 @@ export interface RetryConfig {
 }
 
 export class ResilientAgentExecutor {
-  constructor(private config: RetryConfig = { maxRetries: 3, initialDelayMs: 500, maxDelayMs: 5000, backoffFactor: 2 }) {}
+  constructor(
+    private config: RetryConfig = {
+      maxRetries: 4,
+      initialDelayMs: 400,
+      maxDelayMs: 6000,
+      backoffFactor: 2,
+    }
+  ) {}
 
   public async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
     let attempt = 0;
-    let delay = this.config.initialDelayMs;
+    let currentDelay = this.config.initialDelayMs;
 
     while (attempt < this.config.maxRetries) {
       try {
         return await fn();
-      } catch (err: unknown) {
+      } catch (error: any) {
         attempt++;
         if (attempt >= this.config.maxRetries) {
-          throw new Error(`Execution Failed after ${attempt} attempts: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `ResilientExecutor: Max retries exceeded (${attempt}). Error: ${error.message}`
+          );
         }
 
-        // Apply Exponential Backoff + Jitter
-        const jitter = Math.random() * 200;
-        const sleepTime = Math.min(delay * this.config.backoffFactor + jitter, this.config.maxDelayMs);
-        console.warn(`[Retry Engine] Attempt ${attempt} failed. Retrying in ${Math.round(sleepTime)}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, sleepTime));
-        delay = sleepTime;
+        // Full jitter calculation to distribute concurrent retry waves
+        const jitter = Math.random() * currentDelay * 0.5;
+        const sleepMs = Math.min(
+          currentDelay * this.config.backoffFactor + jitter,
+          this.config.maxDelayMs
+        );
+
+        console.warn(
+          `[Resilience] Attempt ${attempt} failed: ${error.message}. Retrying in ${Math.round(sleepMs)}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, sleepMs));
+        currentDelay = sleepMs;
       }
     }
 
-    throw new Error("Execution Failed: Exceeded Maximum Retries");
+    throw new Error("ResilientExecutor: Execution failed.");
   }
 }
 ```
 
 ---
 
-## Step 2: Automated LLM-as-a-Judge Evaluation Pipeline
+## 2. Automated LLM-as-a-Judge Evaluation Pipeline
 
-Evaluating agent quality requires measuring whether the final state successfully met the user's goal without hallucinating or running redundant tool calls.
+To verify whether agent output aligns with intended requirements without manual inspection, we use structured OpenAI outputs for quantitative scoring:
 
 ```typescript
-export interface TestCase {
-  id: string;
-  prompt: string;
-  expectedKeywords: string[];
-}
+import OpenAI from "openai";
+import { z } from "zod";
 
-export interface EvalResult {
-  testId: string;
-  passed: boolean;
-  score: number; // 0.0 to 1.0
-  reasoning: string;
-}
+const EvaluationSchema = z.object({
+  taskSuccess: z.boolean(),
+  accuracyScore: z.number().min(0).max(1),
+  hallucinationDetected: z.boolean(),
+  reasoning: z.string(),
+});
 
-export class EvalSuite {
-  public async evaluateOutput(testCase: TestCase, actualOutput: string): Promise<EvalResult> {
-    const matched = testCase.expectedKeywords.filter((kw) =>
-      actualOutput.toLowerCase().includes(kw.toLowerCase())
-    );
+export type EvaluationResult = z.infer<typeof EvaluationSchema>;
 
-    const score = matched.length / testCase.expectedKeywords.length;
-    const passed = score >= 0.75;
+export class AgentEvalSuite {
+  private client: OpenAI;
 
-    return {
-      testId: testCase.id,
-      passed,
-      score,
-      reasoning: `Matched ${matched.length}/${testCase.expectedKeywords.length} required assertion keywords.`,
-    };
+  constructor() {
+    this.client = new OpenAI();
+  }
+
+  public async evaluateExecution(
+    userGoal: string,
+    agentOutput: string,
+    groundTruthReference: string
+  ): Promise<EvaluationResult> {
+    const prompt = `
+You are an expert technical referee. Grade the agent's output against the user goal and reference ground truth.
+
+User Goal: ${userGoal}
+Ground Truth Reference: ${groundTruthReference}
+Agent Output: ${agentOutput}
+`;
+
+    const response = await this.client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "Evaluate technical accuracy and completeness." },
+        { role: "user", content: prompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "EvaluationResult",
+          schema: {
+            type: "object",
+            properties: {
+              taskSuccess: { type: "boolean" },
+              accuracyScore: { type: "number" },
+              hallucinationDetected: { type: "boolean" },
+              reasoning: { type: "string" },
+            },
+            required: ["taskSuccess", "accuracyScore", "hallucinationDetected", "reasoning"],
+            additionalProperties: false,
+          },
+          strict: true,
+        },
+      },
+      temperature: 0.0,
+    });
+
+    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    return EvaluationSchema.parse(parsed);
   }
 }
 ```
 
 ---
 
-## Step 3: OpenTelemetry Distributed Tracing & Token Metering
+## 3. OpenTelemetry Distributed Tracing
+
+Instrumenting each tool call as an OpenTelemetry span provides end-to-end latency visibility across complex multi-agent execution graphs:
 
 ```typescript
-export interface SpanEvent {
-  name: string;
-  timestamp: number;
-  attributes: Record<string, unknown>;
-}
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 
-export class TelemetryTracer {
-  private events: SpanEvent[] = [];
+const tracer = trace.getTracer("multi-agent-framework", "1.0.0");
 
-  public logSpan(name: string, attributes: Record<string, unknown>): void {
-    const event: SpanEvent = {
-      name,
-      timestamp: Date.now(),
-      attributes,
-    };
-    this.events.push(event);
-    console.log(`[Telemetry Span] ${name}:`, JSON.stringify(attributes));
-  }
-
-  public getTraceSummary() {
-    return {
-      totalSpans: this.events.length,
-      events: this.events,
-    };
-  }
+export async function traceAgentStep<T>(
+  stepName: string,
+  attributes: Record<string, string | number>,
+  fn: () => Promise<T>
+): Promise<T> {
+  return tracer.startActiveSpan(stepName, async (span) => {
+    try {
+      span.setAttributes(attributes);
+      const result = await fn();
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (err: any) {
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err.message || "Step execution error",
+      });
+      span.recordException(err);
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
 }
 ```
 
 ---
 
-## Summary of the Complete 5-Part Series Masterclass
-
-Congratulations! You have built a complete, production-grade Multi-Agent AI Framework from scratch!
-
-```mermaid
-mindmap
-  root((Multi-Agent Framework))
-    Part 1: Core Engine
-      Deterministic State Machine
-      Step-Counted Event Loop
-      Typed Tool Contracts
-    Part 2: Hybrid Memory
-      Sliding Window Context
-      LanceDB Vector Indexing
-      Token Pruning Algorithm
-    Part 3: Orchestration
-      Supervisor Lead Routing
-      Parallel Worker Fan-Out
-      Agent Handoff Protocol
-    Part 4: Tool Standard
-      Model Context Protocol
-      JSON-RPC Transport
-      Dynamic Tool Discovery
-    Part 5: Production
-      Exponential Backoff
-      LLM-as-a-Judge Evals
-      OpenTelemetry Tracing
-```
-
----
-
-### Series Master Index
+## Masterclass Series Index
 
 - **[Part 1: Core Event Loop & State Machine](/posts/multi-agent-framework-part-1-architecture)**
 - **[Part 2: Hybrid Memory & Context Pruning](/posts/multi-agent-framework-part-2-memory-systems)**
@@ -222,4 +237,4 @@ mindmap
 - **[Part 4: Model Context Protocol (MCP) Integration](/posts/multi-agent-framework-part-4-mcp-protocol)**
 - **Part 5: Production Evals, Retries & Telemetry** (Current Article)
 
-Explore the complete playlist series on our **[Multi-Agent Framework Masterclass Playlist](/playlists/multi-agent-framework-masterclass)**!
+Explore the complete playlist on our **[Multi-Agent Framework Masterclass Playlist](/playlists/multi-agent-framework-masterclass)**!

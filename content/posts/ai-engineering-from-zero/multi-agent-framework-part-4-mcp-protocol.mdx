@@ -2,7 +2,7 @@
 title: "Building a Multi-Agent AI Framework (Part 4/5): Model Context Protocol (MCP) Integration"
 description: "Step 4 in our 5-part masterclass: Integrating Anthropic's Model Context Protocol (MCP) for secure tool discovery and resource streaming."
 slug: "multi-agent-framework-part-4-mcp-protocol"
-date: "2026-08-10"
+date: "2026-04-07"
 author: "Asutosh Sidhya"
 category: "AI"
 tags: ["AI Agents", "MCP Protocol", "TypeScript", "JSON-RPC", "Integrations"]
@@ -12,7 +12,7 @@ readTime: "11 min read"
 ---
 
 > [!NOTE]
-> **5-Part Series Navigation**: This is **Part 4** of our continuous journey *Building a Multi-Agent AI Framework from Scratch*.
+> **5-Part Masterclass Navigation**:
 > - [Part 1: Core Event Loop & State Machine](/posts/multi-agent-framework-part-1-architecture)
 > - [Part 2: Hybrid Memory & Context Pruning](/posts/multi-agent-framework-part-2-memory-systems)
 > - [Part 3: Multi-Agent Teams & Orchestration](/posts/multi-agent-framework-part-3-orchestration)
@@ -21,152 +21,142 @@ readTime: "11 min read"
 
 ---
 
-# The Fragmented Tool Integration Problem
+# The Problem of Custom Tool Glue Code
 
-In **[Part 3](/posts/multi-agent-framework-part-3-orchestration)**, we built multi-agent swarms with specialized workers. But up until now, every tool (PostgreSQL querying, File I/O, Web Search) had to be custom-coded as a TypeScript object inside our application codebase.
+In [Part 3](/posts/multi-agent-framework-part-3-orchestration), we designed specialized multi-agent teams. However, when connecting agents to real-world enterprise infrastructure (PostgreSQL, GitHub, AWS, Jira), authoring and maintaining bespoke TypeScript API wrappers creates unsustainable maintenance overhead.
 
-When connecting an agent framework to dozens of enterprise data sources, writing custom SDK wrappers creates massive technical debt.
-
-This is why Anthropic introduced the **Model Context Protocol (MCP)**—an open, standard protocol built on JSON-RPC 2.0 that allows AI agents to dynamically discover, inspect, and invoke tools hosted on local processes or remote servers.
-
-In this guide, we will implement an **MCP Client Adapter** in TypeScript that registers MCP tools dynamically into our `AgentRuntime`.
+Anthropic introduced the **Model Context Protocol (MCP)**—an open, standard protocol based on JSON-RPC 2.0 that allows AI models to discover, inspect, and invoke tools hosted on local processes or remote servers without custom glue code.
 
 ---
 
-## MCP Architecture & Protocol Flow
+## MCP Protocol Lifecycle
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Agent as AgentRuntime (MCP Client)
-    participant MCPServer as Local / Cloud MCP Server
-    participant Tool as Target System (DB / API)
+    participant Server as MCP Server (Local / Remote)
+    participant Resource as Target Resource (PostgreSQL / Filesystem)
 
-    Agent->>MCPServer: Initialize (JSON-RPC `initialize`)
-    MCPServer-->>Agent: Capabilities & Server Info
-    Agent->>MCPServer: Request Tools (`tools/list`)
-    MCPServer-->>Agent: Returns Tool Schemas & Descriptions
-    Agent->>Agent: Register Tools into Runtime Map
+    Agent->>Server: Initialize Session (JSON-RPC `initialize`)
+    Server-->>Agent: Server Capabilities & Protocols
+    Agent->>Server: Discover Available Tools (`tools/list`)
+    Server-->>Agent: Return JSON Schema Tool Contracts
+    Agent->>Agent: Register Tools into Runtime Registry
 
-    Note over Agent, MCPServer: Execution Loop Triggered
-    Agent->>MCPServer: Call Tool (`tools/call`, { name, args })
-    MCPServer->>Tool: Execute Native Action
-    Tool-->>MCPServer: Native Result Data
-    MCPServer-->>Agent: Return Standardized MCP Tool Content
+    Note over Agent, Server: Agent Decides to Invoke Tool
+    Agent->>Server: Execute Tool (`tools/call`, { name, arguments })
+    Server->>Resource: Execute Operation against Resource
+    Resource-->>Server: Return Data / Result
+    Server-->>Agent: Return Standardized MCP Tool Content
 ```
 
 ---
 
-## Implementing the MCP Client Adapter
+## 1. Implementing the MCP Client Adapter in TypeScript
 
-The `MCPClient` handles JSON-RPC 2.0 transport over Stdio or HTTP/SSE transports, converts MCP tool schemas into our framework's `ToolDefinition` structure, and executes remote calls.
+Below is the production MCP Client adapter that interfaces with the official `@modelcontextprotocol/sdk`:
 
 ```typescript
-import { ToolDefinition } from "./runtime";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ToolDefinition } from "./types";
+import { z } from "zod";
 
-export interface MCPToolSchema {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-}
+export class MCPRuntimeAdapter {
+  private client: Client;
+  private transport: StdioClientTransport;
 
-export interface JSONRPCResponse<T = unknown> {
-  jsonrpc: "2.0";
-  id: number | string;
-  result?: T;
-  error?: { code: number; message: string };
-}
+  constructor(command: string, args: string[]) {
+    this.transport = new StdioClientTransport({ command, args });
+    this.client = new Client(
+      { name: "SidhyaMCPAdapter", version: "1.0.0" },
+      { capabilities: { tools: {} } }
+    );
+  }
 
-export class MCPClient {
-  private requestIdCounter = 1;
-
-  constructor(private serverUrlOrCommand: string) {}
+  public async connect(): Promise<void> {
+    await this.client.connect(this.transport);
+  }
 
   /**
-   * Initializes session and fetches available tool definitions from MCP Server
+   * Discovers tools from the MCP server and adapts them into AgentRuntime ToolDefinitions
    */
-  public async discoverTools(): Promise<ToolDefinition[]> {
-    const response = await this.sendJSONRPC< { tools: MCPToolSchema[] } >("tools/list", {});
-
-    if (!response.result || !Array.isArray(response.result.tools)) {
-      throw new Error("MCP Error: Invalid response from server during tools/list");
-    }
-
-    return response.result.tools.map((mcpTool) => this.adaptMCPToolToRuntime(mcpTool));
-  }
-
-  private adaptMCPToolToRuntime(mcpTool: MCPToolSchema): ToolDefinition {
-    return {
-      name: mcpTool.name,
-      description: mcpTool.description,
-      parameters: mcpTool.inputSchema,
+  public async discoverAndAdaptTools(): Promise<ToolDefinition<any>[]> {
+    const response = await this.client.listTools();
+    
+    return response.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description || "",
+      schema: z.record(z.unknown()), // Dynamic runtime schema
       execute: async (args: Record<string, unknown>) => {
-        return this.callTool(mcpTool.name, args);
+        const result = await this.client.callTool({
+          name: tool.name,
+          arguments: args,
+        });
+
+        // Extract and join text blocks from MCP content format
+        if (result.content && Array.isArray(result.content)) {
+          const textBlocks = result.content
+            .filter((c: any) => c.type === "text")
+            .map((c: any) => c.text);
+          return textBlocks.join("\n");
+        }
+
+        return result;
       },
-    };
+    }));
   }
 
-  public async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
-    const response = await this.sendJSONRPC<{ content: Array<{ type: string; text: string }> }>(
-      "tools/call",
-      {
-        name: toolName,
-        arguments: args,
-      }
-    );
-
-    if (response.error) {
-      throw new Error(`MCP Tool Call Error [${response.error.code}]: ${response.error.message}`);
-    }
-
-    // Extract text content payload from MCP standard response
-    const contentList = response.result?.content || [];
-    const textOutputs = contentList.filter((c) => c.type === "text").map((c) => c.text);
-    return textOutputs.join("\n") || response.result;
-  }
-
-  private async sendJSONRPC<T>(method: string, params: Record<string, unknown>): Promise<JSONRPCResponse<T>> {
-    const payload = {
-      jsonrpc: "2.0",
-      id: this.requestIdCounter++,
-      method,
-      params,
-    };
-
-    // Demonstrative mock HTTP transport payload return
-    return {
-      jsonrpc: "2.0",
-      id: payload.id,
-      result: {
-        tools: [
-          {
-            name: "mcp_filesystem_read",
-            description: "Read contents of a local file via MCP protocol",
-            inputSchema: { type: "object", properties: { path: { type: "string" } } },
-          },
-        ],
-      } as unknown as T,
-    };
+  public async disconnect(): Promise<void> {
+    await this.transport.close();
   }
 }
 ```
 
 ---
 
-> [!TIP]
-> **Why Model Context Protocol Matters**: By standardizing on MCP, your custom agent framework can immediately tap into hundreds of pre-built community MCP servers (GitHub, Postgres, Slack, Google Drive) without writing custom API code!
+## 2. Registering MCP Servers into the Agent Framework
+
+Connecting external community MCP servers (such as SQLite, Git, or Postgres) to our runtime requires only a few lines:
+
+```typescript
+import { AgentRuntime } from "./AgentRuntime";
+import { MCPRuntimeAdapter } from "./MCPRuntimeAdapter";
+
+async function bootstrapAgentWithMCP() {
+  const runtime = new AgentRuntime(10);
+
+  // Connect to local PostgreSQL MCP Server via stdio
+  const pgAdapter = new MCPRuntimeAdapter("npx", [
+    "-y",
+    "@modelcontextprotocol/server-postgres",
+    "postgresql://postgres:password@localhost:5432/production_db",
+  ]);
+
+  await pgAdapter.connect();
+  const dbTools = await pgAdapter.discoverAndAdaptTools();
+
+  // Register discovered tools into the Agent Runtime
+  for (const tool of dbTools) {
+    runtime.registerTool(tool);
+    console.log(`[MCP Registry] Registered tool: ${tool.name}`);
+  }
+
+  const result = await runtime.run(
+    "List the top 5 largest tables by disk usage in the public schema."
+  );
+
+  console.log("Agent Final Result:", result.messages[result.messages.length - 1].content);
+}
+```
 
 ---
 
-## What's Coming Next in Part 5?
+## Key Takeaways
 
-We have built state management (Part 1), hybrid memory (Part 2), multi-agent swarms (Part 3), and dynamic MCP tool protocol integration (Part 4).
+- **Decoupled Architecture**: MCP abstracts tool implementation details behind a clean JSON-RPC 2.0 protocol boundary.
+- **Ecosystem Interoperability**: By supporting MCP, your agent framework immediately gains access to hundreds of open-source community MCP servers (Postgres, GitHub, Slack, AWS).
+- **Type Safety at the Edge**: Tool contracts are negotiated dynamically over `tools/list` and validated prior to execution.
 
-Now comes the ultimate test: **How do we make our agent engine resilient enough for enterprise mission-critical production deployment?**
-
-In **[Part 5: Production Evals, Retries & Telemetry](/posts/multi-agent-framework-part-5-resilience-evals)**, we will build:
-1. Exponential backoff retry loops & circuit breakers.
-2. LLM-as-a-Judge evaluation pipelines for accuracy benchmarking.
-3. OpenTelemetry distributed tracing and token cost monitoring!
-
-👉 **[Continue to Part 5: Production Evals, Retries & Telemetry →](/posts/multi-agent-framework-part-5-resilience-evals)**
+**[Continue to Part 5: Production Evals, Retries & Telemetry →](/posts/multi-agent-framework-part-5-resilience-evals)**
