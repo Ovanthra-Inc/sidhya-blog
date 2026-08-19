@@ -1,10 +1,10 @@
 export default function NewsletterSection() {
   return (
-    <section className="mx-6 md:mx-20 bg-[#1A1A1A] text-white px-8 md:px-12 py-10 rounded-3xl">
+    <section className="mx-3 sm:mx-8 md:mx-16 lg:mx-20 bg-[#1A1A1A] text-white px-5 sm:px-8 md:px-12 py-8 sm:py-10 rounded-2xl sm:rounded-3xl">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         {/* Left */}
         <div>
-          <h2 className="text-3xl font-bold leading-tight mb-4 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-4 tracking-tight">
             Stay Ahead in AI &<br />Software Architecture
           </h2>
           <p className="text-xs text-gray-400 mb-6 max-w-sm">
@@ -15,14 +15,14 @@ export default function NewsletterSection() {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 text-xs text-gray-800 bg-transparent placeholder:text-gray-400 border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none"
+                className="flex-1 text-xs text-gray-800 bg-transparent placeholder:text-gray-400 border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none min-w-0"
               />
             </div>
             <a
               href="https://mail.google.com/mail/?view=cm&fs=1&to=sidhyaasutosh@gmail.com"
               target="_blank"
               rel="noreferrer"
-              className="bg-white text-black text-xs font-bold px-6 py-2.5 rounded-full hover:bg-gray-100 transition-colors text-center cursor-pointer"
+              className="bg-white text-black text-xs font-bold px-6 py-2.5 rounded-full hover:bg-gray-100 transition-colors text-center cursor-pointer flex-shrink-0"
             >
               Subscribe
             </a>
@@ -42,3 +42,4 @@ export default function NewsletterSection() {
     </section>
   );
 }
+

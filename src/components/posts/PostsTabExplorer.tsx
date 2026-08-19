@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import PostCard from "@/components/ui/PostCard";
 import CategoryPills, { CategoryOption } from "@/components/ui/CategoryPills";
+import Pagination from "@/components/ui/Pagination";
 import { Post } from "@/lib/posts";
 
 interface PostsTabExplorerProps {
@@ -84,23 +85,11 @@ export default function PostsTabExplorer({
     }
   };
 
-  const handlePrev = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const handleNext = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage((prev) => prev + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
   const handlePageClick = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const currentCategoryName =
@@ -187,67 +176,14 @@ export default function PostsTabExplorer({
         </div>
       )}
 
-      {/* Pagination Stepper */}
+      {/* Responsive Pagination Stepper */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-100 pt-6 text-xs text-gray-500 mt-8">
-          <button
-            onClick={handlePrev}
-            disabled={currentPage === 1}
-            className={`flex items-center gap-1.5 font-semibold transition-colors cursor-pointer ${
-              currentPage === 1
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-gray-700 hover:text-black"
-            }`}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M19 12H5M12 19l-7-7 7-7"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Previous
-          </button>
-
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => handlePageClick(pageNum)}
-                className={`w-8 h-8 rounded-none text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
-                  pageNum === currentPage
-                    ? "bg-black text-white shadow-xs scale-105"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {pageNum}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={handleNext}
-            disabled={currentPage === totalPages}
-            className={`flex items-center gap-1.5 font-semibold transition-colors cursor-pointer ${
-              currentPage === totalPages
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-gray-700 hover:text-black"
-            }`}
-          >
-            Next
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M5 12h14M12 5l7 7-7 7"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageClick}
+          className="mt-8"
+        />
       )}
     </div>
   );
