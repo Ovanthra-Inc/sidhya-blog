@@ -11,19 +11,21 @@ interface ShareModalProps {
     description: string;
     slug: string;
   };
+  /** Defaults to 'posts'. Pass 'playlists' for playlist pages. */
+  basePath?: string;
 }
 
 const BASE_URL = "https://sidhya.studio";
 
-function buildPostUrl(slug: string) {
-  return `${BASE_URL}/posts/${slug}`;
+function buildPostUrl(slug: string, basePath: string) {
+  return `${BASE_URL}/${basePath}/${slug}`;
 }
 
-export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, post, basePath = "posts" }: ShareModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const copyBtnRef = useRef<HTMLButtonElement>(null);
 
-  const postUrl = buildPostUrl(post.slug);
+  const postUrl = buildPostUrl(post.slug, basePath);
   const shareTitle = post.title;
   const shareText = `${post.title}\n\n${post.description}`;
 

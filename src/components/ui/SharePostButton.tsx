@@ -10,22 +10,31 @@ interface SharePostButtonProps {
     description: string;
     slug: string;
   };
+  /** Defaults to 'posts'. Pass 'playlists' for playlist URLs. */
+  basePath?: string;
+  className?: string;
+  size?: number;
 }
 
-export default function SharePostButton({ post }: SharePostButtonProps) {
+export default function SharePostButton({
+  post,
+  basePath = "posts",
+  className = "text-gray-400 hover:text-gray-700",
+  size = 22,
+}: SharePostButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Share this article"
+        aria-label="Share"
         title="Share"
-        className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+        className={`transition-colors cursor-pointer flex items-center justify-center ${className}`}
       >
-        <IoIosShareAlt size={22} />
+        <IoIosShareAlt size={size} />
       </button>
-      <ShareModal isOpen={open} onClose={() => setOpen(false)} post={post} />
+      <ShareModal isOpen={open} onClose={() => setOpen(false)} post={post} basePath={basePath} />
     </>
   );
 }

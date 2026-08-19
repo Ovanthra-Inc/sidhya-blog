@@ -3,6 +3,7 @@ import Link from "next/link";
 import Footer from "@/app/components/Footer";
 import BackButton from "@/components/ui/BackButton";
 import SafeImage from "@/components/ui/SafeImage";
+import SharePostButton from "@/components/ui/SharePostButton";
 import { CourseJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { getPlaylistBySlug, getAllPlaylists } from "@/lib/playlists";
 
@@ -79,9 +80,21 @@ export default async function PlaylistPage({ params }: PlaylistPageProps) {
         {/* Playlist Hero Banner */}
         <div className="bg-gray-900 text-white rounded-3xl p-8 md:p-12 mb-12 relative overflow-hidden flex flex-col md:flex-row gap-8 items-center border border-gray-800">
           <div className="flex-1 z-10">
-            <span className="inline-block px-3 py-1 bg-blue-600/30 text-blue-300 text-xs font-semibold uppercase tracking-wider rounded-full mb-3 border border-blue-400/30">
-              {playlist.category} PLAYLIST
-            </span>
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-block px-3 py-1 bg-blue-600/30 text-blue-300 text-xs font-semibold uppercase tracking-wider rounded-full border border-blue-400/30">
+                {playlist.category} PLAYLIST
+              </span>
+              <SharePostButton
+                post={{
+                  title: playlist.title,
+                  description: playlist.description,
+                  slug: playlist.slug,
+                }}
+                basePath="playlists"
+                className="text-gray-400 hover:text-white"
+                size={24}
+              />
+            </div>
             <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4">
               {playlist.title}
             </h1>
