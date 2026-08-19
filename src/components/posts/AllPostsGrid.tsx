@@ -3,10 +3,94 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
+import ShareModal from "@/components/ui/ShareModal";
+import { IoIosShareAlt } from "react-icons/io";
 import { Post } from "@/lib/posts";
 
 interface AllPostsGridProps {
   posts: Post[];
+}
+
+// Individual card with its own share state
+function PostGridCard({ post }: { post: Post }) {
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareOpen(true);
+  };
+
+  return (
+    <>
+      <Link
+        href={`/posts/${post.slug}`}
+        className="group flex flex-col p-4 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer bg-white"
+      >
+        {/* Image Box */}
+        <div className="relative w-full h-64 rounded-xl overflow-hidden mb-4 bg-gray-100">
+          <SafeImage
+            src={post.cover}
+            alt={post.title}
+            fallbackTitle={post.title}
+            category={post.category}
+            fill
+            sizes="(max-width: 780px) 100vw, 380px"
+            className="object-cover group-hover:scale-103 transition-transform duration-300"
+          />
+          {/* Share button: top-right of image */}
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <button
+              onClick={handleShare}
+              aria-label="Share this article"
+              title="Share"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/70 shadow-sm transition-all duration-200 cursor-pointer"
+            >
+              <IoIosShareAlt size={17} />
+            </button>
+          </div>
+        </div>
+
+        {/* Category & Read Time */}
+        <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+          <span className="font-bold text-blue-600 uppercase tracking-wider text-[11px]">
+            {post.category}
+          </span>
+          <span>{post.readTime}</span>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-xl font-bold text-gray-900 leading-snug mb-2 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
+          {post.title}
+        </h2>
+
+        {/* Description */}
+        <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4">
+          {post.description}
+        </p>
+
+        {/* Footer Author Row */}
+        <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center gap-2">
+            <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+              <SafeImage
+                src="/avatar.jpg"
+                alt={post.author}
+                fallbackTitle={post.author}
+                category="AUTHOR"
+                fill
+                sizes="20px"
+                className="object-cover"
+              />
+            </div>
+            <span className="font-semibold text-gray-800">{post.author}</span>
+          </div>
+          <span>{post.date}</span>
+        </div>
+      </Link>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
+    </>
+  );
 }
 
 export default function AllPostsGrid({ posts }: AllPostsGridProps) {
@@ -63,61 +147,7 @@ export default function AllPostsGrid({ posts }: AllPostsGridProps) {
       {/* 4 Rows x 3 Columns Grid (12 items per page) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {currentPosts.map((post) => (
-          <Link
-            key={post.slug}
-            href={`/posts/${post.slug}`}
-            className="group flex flex-col p-4 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-xs transition-all duration-200 cursor-pointer bg-white"
-          >
-            {/* Image Box */}
-            <div className="relative w-full h-64 rounded-xl overflow-hidden mb-4 bg-gray-100">
-              <SafeImage
-                src={post.cover}
-                alt={post.title}
-                fallbackTitle={post.title}
-                category={post.category}
-                fill
-                sizes="(max-width: 780px) 100vw, 380px"
-                className="object-cover group-hover:scale-103 transition-transform duration-300"
-              />
-            </div>
-
-            {/* Category & Read Time */}
-            <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-              <span className="font-bold text-blue-600 uppercase tracking-wider text-[11px]">
-                {post.category}
-              </span>
-              <span>{post.readTime}</span>
-            </div>
-
-            {/* Title */}
-            <h2 className="text-xl font-bold text-gray-900 leading-snug mb-2 group-hover:text-blue-600 group-hover:underline transition-colors line-clamp-2">
-              {post.title}
-            </h2>
-
-            {/* Description */}
-            <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4">
-              {post.description}
-            </p>
-
-            {/* Footer Author Row */}
-            <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-              <div className="flex items-center gap-2">
-                <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
-                  <SafeImage
-                    src="/avatar.jpg"
-                    alt={post.author}
-                    fallbackTitle={post.author}
-                    category="AUTHOR"
-                    fill
-                    sizes="20px"
-                    className="object-cover"
-                  />
-                </div>
-                <span className="font-semibold text-gray-800">{post.author}</span>
-              </div>
-              <span>{post.date}</span>
-            </div>
-          </Link>
+          <PostGridCard key={post.slug} post={post} />
         ))}
       </div>
 

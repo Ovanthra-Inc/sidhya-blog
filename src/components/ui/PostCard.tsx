@@ -1,6 +1,10 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import SafeImage from "./SafeImage";
+import ShareModal from "./ShareModal";
+import { IoIosShareAlt } from "react-icons/io";
 import { Post } from "@/lib/posts";
 
 interface PostCardProps {
@@ -15,6 +19,30 @@ export default function PostCard({
   variant = "grid",
   priority = false,
 }: PostCardProps) {
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareOpen(true);
+  };
+
+  // Reusable share icon button (dark bg, top-right)
+  const ShareBtn = ({ light = false }: { light?: boolean }) => (
+    <button
+      onClick={handleShareClick}
+      aria-label="Share this article"
+      title="Share"
+      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
+        light
+          ? "bg-black/40 backdrop-blur-md text-white hover:bg-black/70"
+          : "bg-white/90 backdrop-blur-md text-gray-700 hover:bg-white hover:shadow-md"
+      } shadow-sm`}
+    >
+      <IoIosShareAlt size={17} />
+    </button>
+  );
+
   // ── 1. Full Card Background Image Variant (For TopBlogs Card 1 & Card 3) ──
   if (variant === "full-bg") {
     return (
@@ -39,11 +67,12 @@ export default function PostCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/15 z-10" />
         </div>
 
-        {/* Top Bar: Category Left, Read time Right */}
+        {/* Top Bar: Category Left, Share Right */}
         <div className="relative z-20 flex items-center justify-between text-xs mb-4">
           <span className="px-2.5 py-1 bg-black/60 backdrop-blur-md text-white border border-white/20 text-[10px] font-bold uppercase tracking-wider rounded-none shadow-xs">
             {post.category} • {post.readTime}
           </span>
+          <ShareBtn light />
         </div>
 
         {/* Middle Body: Title + Description */}
@@ -78,6 +107,7 @@ export default function PostCard({
             READ ARTICLE →
           </span>
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -90,12 +120,12 @@ export default function PostCard({
         prefetch={true}
         className="group relative flex flex-col justify-between p-6 sm:p-7 min-h-[380px] sm:min-h-[400px] overflow-hidden rounded-none transition-all duration-300 cursor-pointer bg-gradient-to-br from-red-600 via-rose-600 to-red-700 text-white shadow-md hover:shadow-xl border-0"
       >
-        {/* Top Bar: Category Left, Read time Right */}
+        {/* Top Bar: Category Left, Share Right */}
         <div className="flex items-center justify-between text-xs mb-4">
           <span className="px-2.5 py-1 bg-black/30 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-none">
-            {post.category}
+            {post.category} • {post.readTime}
           </span>
-          <span className="text-xs font-semibold text-white/90">{post.readTime}</span>
+          <ShareBtn light />
         </div>
 
         {/* Middle Body: Bold Uppercase Title + Description */}
@@ -130,6 +160,7 @@ export default function PostCard({
             READ ARTICLE →
           </span>
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -147,6 +178,7 @@ export default function PostCard({
             <span className="px-2.5 py-1 bg-blue-900/60 border border-blue-500/30 text-blue-300 text-[10px] font-bold uppercase tracking-wider rounded-none">
               {post.category} • {post.readTime}
             </span>
+            <ShareBtn light />
           </div>
 
           <div className="my-auto py-2">
@@ -192,6 +224,7 @@ export default function PostCard({
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -208,6 +241,7 @@ export default function PostCard({
           <span className="px-2.5 py-1 bg-red-900/60 border border-red-500/30 text-red-300 text-[10px] font-bold uppercase tracking-wider rounded-none">
             {post.category} • {post.readTime}
           </span>
+          <ShareBtn light />
         </div>
 
         <div className="my-auto py-2">
@@ -238,6 +272,7 @@ export default function PostCard({
             EXPLORE →
           </span>
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -266,6 +301,9 @@ export default function PostCard({
               {post.category}
             </span>
           </div>
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <ShareBtn light />
+          </div>
         </div>
 
         <div className="p-4 flex flex-col flex-1 justify-between">
@@ -283,6 +321,7 @@ export default function PostCard({
             <span className="font-bold text-blue-600">Read →</span>
           </div>
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -319,7 +358,10 @@ export default function PostCard({
               <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold uppercase tracking-wider text-[10px] rounded">
                 {post.category}
               </span>
-              <span className="font-semibold text-gray-500">{post.readTime}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-500">{post.readTime}</span>
+                <ShareBtn />
+              </div>
             </div>
 
             <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 leading-tight tracking-tight mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
@@ -351,6 +393,7 @@ export default function PostCard({
             </span>
           </div>
         </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
       </Link>
     );
   }
@@ -378,6 +421,9 @@ export default function PostCard({
           <span className="px-2.5 py-1 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
             {post.category}
           </span>
+        </div>
+        <div className="absolute top-3 right-3 z-10">
+          <ShareBtn light />
         </div>
       </div>
 
@@ -418,6 +464,7 @@ export default function PostCard({
           </span>
         </div>
       </div>
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} post={post} />
     </Link>
   );
 }

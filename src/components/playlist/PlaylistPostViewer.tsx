@@ -6,6 +6,7 @@ import SafeImage from "@/components/ui/SafeImage";
 import ArticleRenderer from "@/components/mdx/ArticleRenderer";
 import BackButton from "@/components/ui/BackButton";
 import PostCard from "@/components/ui/PostCard";
+import SharePostButton from "@/components/ui/SharePostButton";
 import { Post } from "@/lib/posts";
 import { PlaylistContext } from "@/lib/playlists";
 
@@ -95,7 +96,7 @@ export default function PlaylistPostViewer({
             className="object-cover rounded-none"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap flex-1">
           <span>
             By <strong className="font-semibold text-gray-900">{currentPost.author}</strong>
           </span>
@@ -104,6 +105,7 @@ export default function PlaylistPostViewer({
           <span>•</span>
           <span>{currentPost.readTime}</span>
         </div>
+        <SharePostButton post={currentPost} />
       </div>
 
       {/* Cover Image - Taller height (h-[420px] md:h-[640px]) and sharp square corners (rounded-none) */}

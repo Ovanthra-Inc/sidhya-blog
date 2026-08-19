@@ -2,6 +2,48 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// Store the singleton on globalThis so it survives Turbopack HMR.
+// Module-level variables reset every time this file is HMR'd (the module
+// is re-executed). globalThis lives in the browser runtime and is never
+// cleared by HMR, so mermaid is loaded exactly once per browser session.
+declare global {
+  // eslint-disable-next-line no-var
+  var __mermaidInstance: typeof import("mermaid")["default"] | undefined;
+}
+
+async function getMermaid() {
+  if (!globalThis.__mermaidInstance) {
+    const mod = await import("mermaid");
+    const m = mod.default;
+    m.initialize({
+      startOnLoad: false,
+      theme: "neutral",
+      themeVariables: {
+        primaryColor: "#6366f1",
+        primaryTextColor: "#1e1b4b",
+        primaryBorderColor: "#4f46e5",
+        lineColor: "#6366f1",
+        secondaryColor: "#f0f9ff",
+        tertiaryColor: "#faf5ff",
+        background: "#ffffff",
+        mainBkg: "#f8fafc",
+        nodeBorder: "#cbd5e1",
+        clusterBkg: "#f1f5f9",
+        titleColor: "#0f172a",
+        edgeLabelBackground: "#ffffff",
+        fontSize: "14px",
+      },
+      flowchart: { curve: "basis", useMaxWidth: true },
+      sequence: { useMaxWidth: true },
+      er: { useMaxWidth: true },
+    });
+    // Only assign after initialize succeeds — if import() throws (stale
+    // HMR chunk), globalThis stays undefined and we retry next render.
+    globalThis.__mermaidInstance = m;
+  }
+  return globalThis.__mermaidInstance;
+}
+
 interface MermaidDiagramProps {
   chart: string;
 }
@@ -16,29 +58,7 @@ export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
     async function render() {
       try {
-        const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "neutral",
-          themeVariables: {
-            primaryColor: "#6366f1",
-            primaryTextColor: "#1e1b4b",
-            primaryBorderColor: "#4f46e5",
-            lineColor: "#6366f1",
-            secondaryColor: "#f0f9ff",
-            tertiaryColor: "#faf5ff",
-            background: "#ffffff",
-            mainBkg: "#f8fafc",
-            nodeBorder: "#cbd5e1",
-            clusterBkg: "#f1f5f9",
-            titleColor: "#0f172a",
-            edgeLabelBackground: "#ffffff",
-            fontSize: "14px",
-          },
-          flowchart: { curve: "basis", useMaxWidth: true },
-          sequence: { useMaxWidth: true },
-          er: { useMaxWidth: true },
-        });
+        const mermaid = await getMermaid();
 
         const uniqueId = `mermaid-${Math.random().toString(36).slice(2)}`;
         const { svg } = await mermaid.render(uniqueId, chart.trim());

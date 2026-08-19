@@ -5,6 +5,7 @@ import BackButton from "@/components/ui/BackButton";
 import ArticleRenderer from "@/components/mdx/ArticleRenderer";
 import SafeImage from "@/components/ui/SafeImage";
 import PlaylistPostViewer from "@/components/playlist/PlaylistPostViewer";
+import SharePostButton from "@/components/ui/SharePostButton";
 import { BlogPostingJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { getPostBySlug, getAllPosts, Post } from "@/lib/posts";
 import { getPostPlaylistContext } from "@/lib/playlists";
@@ -146,7 +147,7 @@ export default async function PostPage({ params }: PostPageProps) {
                   className="object-cover"
                 />
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap flex-1">
                 <span>
                   By <strong className="font-semibold text-gray-900">{post.author}</strong>
                 </span>
@@ -155,6 +156,7 @@ export default async function PostPage({ params }: PostPageProps) {
                 <span>•</span>
                 <span>{post.readTime}</span>
               </div>
+              <SharePostButton post={post} />
             </div>
 
             <div className="relative w-full h-[350px] md:h-[520px] rounded-2xl overflow-hidden mb-12 bg-gray-100 shadow-xs">
