@@ -48,6 +48,25 @@ interface MermaidDiagramProps {
   chart: string;
 }
 
+function sanitizeMermaidChart(raw: string): string {
+  if (!raw) return raw;
+
+  return raw
+    .replace(/\r\n/g, "\n")
+    // Fix literal \n inside labels
+    .replace(/\\n/g, " ")
+    // Fix unquoted braces: Node{some (text)} -> Node{"some (text)"}
+    .replace(/([a-zA-Z0-9_-]+)\{([^"{}\n]+)\}/g, (_match, id, text) => {
+      const clean = text.replace(/"/g, "'").trim();
+      return `${id}{"${clean}"}`;
+    })
+    // Fix unquoted brackets: Node[some / text (test)] -> Node["some / text (test)"]
+    .replace(/([a-zA-Z0-9_-]+)\[([^"[\]\n]+)\]/g, (_match, id, text) => {
+      const clean = text.replace(/"/g, "'").trim();
+      return `${id}["${clean}"]`;
+    });
+}
+
 export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +78,10 @@ export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
     async function render() {
       try {
         const mermaid = await getMermaid();
+        const sanitized = sanitizeMermaidChart(chart.trim());
 
         const uniqueId = `mermaid-${Math.random().toString(36).slice(2)}`;
-        const { svg } = await mermaid.render(uniqueId, chart.trim());
+        const { svg } = await mermaid.render(uniqueId, sanitized);
 
         if (!cancelled && ref.current) {
           ref.current.innerHTML = svg;
@@ -80,10 +100,17 @@ export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
   if (error) {
     return (
-      <div className="my-6 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-mono">
-        <p className="font-semibold mb-1">Mermaid diagram error:</p>
-        <pre className="text-xs whitespace-pre-wrap">{error}</pre>
-        <pre className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{chart}</pre>
+      <div className="my-6 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-md">
+        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-slate-800 bg-slate-900">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-400">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Architectural Flowchart</span>
+        </div>
+        <pre className="font-mono text-xs md:text-sm text-emerald-400 overflow-x-auto leading-relaxed p-5 bg-slate-950">
+          {chart}
+        </pre>
       </div>
     );
   }

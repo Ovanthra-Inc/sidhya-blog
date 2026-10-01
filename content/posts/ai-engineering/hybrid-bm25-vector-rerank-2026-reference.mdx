@@ -26,17 +26,17 @@ Mermaid flowchart: end-to-end production pipeline
 
 ```mermaid
 flowchart LR
-  U[User Query] --> QT[Query Transform / HyDE]
-  QT --> E{Embed \n(encoder)}
-  E --> VSearch[Vector Search (ANN)]
-  QT --> BM25Search[BM25 / Sparse Search]
-  VSearch --> RRF[Reciprocal Rank Fusion (k=60)]
+  U["User Query"] --> QT["Query Transform / HyDE"]
+  QT --> E{"Embed (Encoder)"}
+  E --> VSearch["Vector Search (ANN)"]
+  QT --> BM25Search["BM25 / Sparse Search"]
+  VSearch --> RRF["Reciprocal Rank Fusion (k=60)"]
   BM25Search --> RRF
-  RRF --> Shortlist[Shortlist (N=50-200)]
-  Shortlist --> Reranker[Cross-encoder Reranker]
-  Reranker --> ContextSel[Top-k Context Selection]
-  ContextSel --> LLM[LLM Prompting]
-  LLM --> Response[Response]
+  RRF --> Shortlist["Shortlist (N=50-200)"]
+  Shortlist --> Reranker["Cross-Encoder Reranker"]
+  Reranker --> ContextSel["Top-k Context Selection"]
+  ContextSel --> LLM["LLM Prompting"]
+  LLM --> Response["Response"]
 ```
 
 Why this architecture

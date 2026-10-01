@@ -284,7 +284,7 @@ STRICT EDITORIAL RULES (FROM PROMPT.md):
      tags: ["Tag1", "Tag2", "Tag3", "Tag4"]
      featured: false
      draft: false
-   - At least 1 Mermaid diagram (\`\`\`mermaid) flowchart or sequence diagram.
+   - At least 1 Mermaid diagram (\`\`\`mermaid) flowchart or sequence diagram. CRITICAL: Always quote all node labels with double quotes to prevent syntax errors, e.g. Node["Label with / or (parens)"], Decision{"Condition (branch)"}. Never leave unquoted parentheses inside braces or brackets.
    - At least 1 comparison table with concrete benchmarks, memory, latency, or throughput metrics.
    - Production-ready typed TypeScript or Python code blocks (fully typed, no pseudo-code).
    - GitHub-style alert callouts (> [!NOTE], > [!TIP], > [!IMPORTANT]).
