@@ -359,14 +359,35 @@ Ensure the post has an authoritative title, exactly 140-160 characters in descri
     mdxContent = mdxContent.replace(/---\s*\n/, `---\ncover: "${coverUrl}"\n`);
   }
 
-  // 5. Save to content/posts/
-  const targetDir = path.join(process.cwd(), "content/posts/ai-engineering");
+  // 5. Save to content/posts/<category-folder>
+  const folderName =
+    category.toLowerCase() === "ai"
+      ? "ai-engineering"
+      : category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const targetDir = path.join(process.cwd(), "content/posts", folderName);
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
   const filePath = path.join(targetDir, `${slug}.mdx`);
   fs.writeFileSync(filePath, mdxContent, "utf8");
+
+  // 6. Optional: Initialize Neon Postgres records if DATABASE_URL is set
+  const dbUrl = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+  if (dbUrl) {
+    try {
+      const { neon } = await import("@neondatabase/serverless");
+      const sql = neon(dbUrl);
+      await sql`
+        INSERT INTO post_likes (slug, likes, updated_at)
+        VALUES (${slug}, 0, CURRENT_TIMESTAMP)
+        ON CONFLICT (slug) DO NOTHING;
+      `;
+      console.log(`[Neon DB] Initialized post tracking row for: ${slug}`);
+    } catch (dbErr) {
+      console.warn(`[Neon DB Notice]: ${dbErr.message}`);
+    }
+  }
 
   console.log(`\n🎉 SUCCESS! Article saved to:\n${filePath}`);
   console.log(`Cover Image URL:\n${coverUrl}`);

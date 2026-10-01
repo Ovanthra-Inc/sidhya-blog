@@ -1,5 +1,5 @@
-import SingleBlogPage from "./[id]/page";
+import { redirect } from "next/navigation";
 
 export default function BlogIndexPage() {
-  return <SingleBlogPage />;
+  redirect("/posts");
 }

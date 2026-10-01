@@ -40,8 +40,8 @@ export default function LikeButton({
         }
       })
       .catch(() => {
-        // Fallback gracefully
-        setLikes(24);
+        // Fallback gracefully without fake counts
+        setLikes(0);
       });
   }, [slug]);
 

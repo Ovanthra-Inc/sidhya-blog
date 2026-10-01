@@ -118,7 +118,7 @@ export function getPlaylistBySlug(slug: string): Playlist | null {
 export function getPostPlaylistContext(postSlug: string): PlaylistContext | null {
   const playlists = getAllPlaylists();
 
-  // 1. Explicit playlist search
+  // Search explicit curated playlists in content/playlists/
   for (const playlist of playlists) {
     const postIdx = playlist.posts.findIndex((p) => p.slug === postSlug);
     if (postIdx !== -1) {
@@ -132,35 +132,6 @@ export function getPostPlaylistContext(postSlug: string): PlaylistContext | null
     }
   }
 
-  // 2. Topic/Category Fallback Series
-  const allPosts = getAllPosts();
-  const currentPost = allPosts.find((p) => p.slug === postSlug);
-  if (!currentPost) return null;
-
-  const categoryPosts = allPosts.filter((p) => p.category === currentPost.category);
-  const resolvedCategoryPosts = categoryPosts.map((p, idx) => ({
-    ...p,
-    index: idx + 1,
-    formattedIndex: (idx + 1).toString().padStart(2, "0"),
-  }));
-
-  const postIdx = resolvedCategoryPosts.findIndex((p) => p.slug === postSlug);
-
-  return {
-    playlist: {
-      title: `${currentPost.category} Mastery Series`,
-      description: `All technical guides and articles under ${currentPost.category}.`,
-      slug: currentPost.category.toLowerCase(),
-      cover: currentPost.cover,
-      category: currentPost.category,
-      postSlugs: categoryPosts.map((p) => p.slug),
-      modules: [{ title: `${currentPost.category} Articles`, posts: resolvedCategoryPosts }],
-      posts: resolvedCategoryPosts,
-      content: "",
-    },
-    currentIndex: postIdx + 1,
-    totalPosts: resolvedCategoryPosts.length,
-    prevPost: postIdx > 0 ? resolvedCategoryPosts[postIdx - 1] : null,
-    nextPost: postIdx < resolvedCategoryPosts.length - 1 ? resolvedCategoryPosts[postIdx + 1] : null,
-  };
+  // Standalone articles do not belong to a playlist series
+  return null;
 }

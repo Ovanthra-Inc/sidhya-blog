@@ -8,27 +8,15 @@ interface TopBlogsProps {
 
 export default function TopBlogs({ posts: propPosts }: TopBlogsProps) {
   const posts = propPosts || getAllPosts();
-  const topPosts = posts.slice(0, 5);
+  const featuredPosts = posts.filter((p) => p.featured);
+  const remainingPosts = posts.filter((p) => !p.featured);
+  const candidateList = [...featuredPosts, ...remainingPosts];
 
-  const post1 =
-    posts.find((p) => p.slug === "ai-devops-agents-part-7-production-guardrails-evals") ||
-    topPosts[0];
-  const post2 =
-    posts.find((p) => p.slug === "ai-devops-agents-part-6-finops-gpu-cost-optimization") ||
-    topPosts[1] ||
-    topPosts[0];
-  const post3 =
-    posts.find((p) => p.slug === "ai-devops-agents-part-5-ebpf-kernel-observability") ||
-    topPosts[2] ||
-    topPosts[0];
-  const post4 =
-    posts.find((p) => p.slug === "ai-devops-agents-part-4-gitops-terraform-drift") ||
-    topPosts[3] ||
-    topPosts[0];
-  const post5 =
-    posts.find((p) => p.slug === "ai-devops-agents-part-3-cicd-triage") ||
-    topPosts[4] ||
-    topPosts[0];
+  const post1 = candidateList[0] || posts[0];
+  const post2 = candidateList[1] || posts[1] || post1;
+  const post3 = candidateList[2] || posts[2] || post1;
+  const post4 = candidateList[3] || posts[3] || post1;
+  const post5 = candidateList[4] || posts[4] || post1;
 
   return (
     <section className="px-4 sm:px-8 md:px-16 lg:px-20 pt-4 pb-12 bg-white">

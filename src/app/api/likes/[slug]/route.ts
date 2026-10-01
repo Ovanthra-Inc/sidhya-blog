@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sql, ensureTablesExist } from "@/lib/db";
 
-// Fallback in-memory store for serverless instance lifetime
+// Fallback in-memory store if no external database is connected
 const inMemoryLikes = new Map<string, number>();
-
-/**
- * Generate a deterministic base like count based on slug string
- * so newly published articles start with a healthy social proof count (e.g. 15-45)
- */
-function getDeterministicBaseCount(slug: string): number {
-  let hash = 0;
-  for (let i = 0; i < slug.length; i++) {
-    hash = (hash << 5) - hash + slug.charCodeAt(i);
-    hash |= 0;
-  }
-  return 15 + (Math.abs(hash) % 35);
-}
+let tablesInitialized = false;
 
 // Check for Upstash or Vercel KV REST API environment variables
 const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -55,18 +44,35 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
-  const key = `likes:${slug}`;
+  const decodedSlug = decodeURIComponent(slug);
 
-  // 1. Try Redis / KV if configured
-  const redisVal = await getFromRedis(key);
-  if (redisVal !== null) {
-    return NextResponse.json({ likes: redisVal });
+  // 1. Neon Serverless Postgres (Primary Production Store)
+  if (sql) {
+    try {
+      if (!tablesInitialized) {
+        await ensureTablesExist();
+        tablesInitialized = true;
+      }
+      const rows = await sql`
+        SELECT likes FROM post_likes WHERE slug = ${decodedSlug} LIMIT 1;
+      `;
+      const count = rows.length > 0 ? Number(rows[0].likes) : 0;
+      return NextResponse.json({ likes: count, source: "neon" });
+    } catch (err) {
+      console.error("[Neon GET Likes Error]:", err);
+    }
   }
 
-  // 2. Fallback to in-memory store + deterministic base
-  const base = getDeterministicBaseCount(slug);
-  const current = inMemoryLikes.get(slug) || 0;
-  return NextResponse.json({ likes: base + current });
+  // 2. Upstash / Redis KV (Secondary Store)
+  const key = `likes:${decodedSlug}`;
+  const redisVal = await getFromRedis(key);
+  if (redisVal !== null) {
+    return NextResponse.json({ likes: redisVal, source: "kv" });
+  }
+
+  // 3. In-memory fallback (starts at real 0, zero dummy fake counts)
+  const current = inMemoryLikes.get(decodedSlug) || 0;
+  return NextResponse.json({ likes: current, source: "memory" });
 }
 
 export async function POST(
@@ -74,18 +80,41 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
-  const key = `likes:${slug}`;
+  const decodedSlug = decodeURIComponent(slug);
 
-  // 1. Try Redis / KV if configured
-  const redisVal = await incrInRedis(key);
-  if (redisVal !== null) {
-    return NextResponse.json({ likes: redisVal, success: true });
+  // 1. Neon Serverless Postgres (Atomic Upsert)
+  if (sql) {
+    try {
+      if (!tablesInitialized) {
+        await ensureTablesExist();
+        tablesInitialized = true;
+      }
+      const rows = await sql`
+        INSERT INTO post_likes (slug, likes, updated_at)
+        VALUES (${decodedSlug}, 1, CURRENT_TIMESTAMP)
+        ON CONFLICT (slug)
+        DO UPDATE SET
+          likes = post_likes.likes + 1,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING likes;
+      `;
+      const count = Number(rows[0].likes);
+      return NextResponse.json({ likes: count, success: true, source: "neon" });
+    } catch (err) {
+      console.error("[Neon POST Likes Error]:", err);
+    }
   }
 
-  // 2. Fallback in-memory increment
-  const base = getDeterministicBaseCount(slug);
-  const current = (inMemoryLikes.get(slug) || 0) + 1;
-  inMemoryLikes.set(slug, current);
+  // 2. Upstash / Redis KV
+  const key = `likes:${decodedSlug}`;
+  const redisVal = await incrInRedis(key);
+  if (redisVal !== null) {
+    return NextResponse.json({ likes: redisVal, success: true, source: "kv" });
+  }
 
-  return NextResponse.json({ likes: base + current, success: true });
+  // 3. In-memory fallback increment
+  const current = (inMemoryLikes.get(decodedSlug) || 0) + 1;
+  inMemoryLikes.set(decodedSlug, current);
+
+  return NextResponse.json({ likes: current, success: true, source: "memory" });
 }

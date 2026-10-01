@@ -71,7 +71,7 @@ export default function Footer() {
             <Link href="/categories/ai" className="text-xs text-gray-600 hover:text-black transition-colors">AI & Autonomous Agents</Link>
             <Link href="/categories/development" className="text-xs text-gray-600 hover:text-black transition-colors">Next.js 16 & React 19</Link>
             <Link href="/categories/devops" className="text-xs text-gray-600 hover:text-black transition-colors">Vector Search & RAG</Link>
-            <Link href="/categories/productivity" className="text-xs text-gray-600 hover:text-black transition-colors">System Architecture</Link>
+            <Link href="/categories/frameworks" className="text-xs text-gray-600 hover:text-black transition-colors">Frameworks & Tooling</Link>
           </div>
 
           {/* Col 4: Legal & Direct Connect */}

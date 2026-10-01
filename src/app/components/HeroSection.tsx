@@ -1,6 +1,6 @@
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
-import { Post } from "@/lib/posts";
+import { getAllPosts, Post } from "@/lib/posts";
 
 interface HeroSectionProps {
   post?: Post;
@@ -8,21 +8,11 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ post, nextPost }: HeroSectionProps) {
-  const featured = post || {
-    title: "How I Built an Autonomous AI Agent with Next.js 16",
-    description:
-      "A comprehensive production guide to building goal-driven AI agents with tool calling, persistent memory, and resilient execution loops.",
-    slug: "how-i-built-an-ai-agent",
-    cover: "/hero.png",
-    readTime: "8 min read",
-    author: "Asutosh Sidhya",
-    category: "FEATURED",
-  };
+  const allPosts = !post || !nextPost ? getAllPosts() : [];
+  const featured = post || allPosts[0];
+  const next = nextPost || allPosts.find((p) => p.slug !== featured?.slug) || allPosts[1];
 
-  const next = nextPost || {
-    title: "Vector Databases",
-    slug: "vector-databases",
-  };
+  if (!featured) return null;
 
   return (
     <section className="relative bg-black text-white min-h-[560px] sm:min-h-[640px] overflow-hidden px-4 sm:px-8 md:px-16">

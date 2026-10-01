@@ -33,29 +33,30 @@ export default function SearchBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Mock search suggestions list
-  const searchIndex: SearchResult[] = [
-    { title: "How I Built an Autonomous AI Agent with Next.js 16", slug: "how-i-built-an-ai-agent", category: "AI" },
-    { title: "Understanding Retrieval-Augmented Generation (RAG)", slug: "what-is-rag", category: "AI" },
-    { title: "High-Performance Vector Databases: Pinecone vs Qdrant vs Pgvector", slug: "vector-databases", category: "AI" },
-    { title: "Advanced Prompt Engineering: Chain-of-Thought & ReAct", slug: "prompt-engineering", category: "AI" },
-    { title: "Next.js 16 App Router & Turbopack Deep Dive", slug: "nextjs-16-mastery", category: "Development" },
-  ];
-
+  // Fetch live search results dynamically from /api/search
   useEffect(() => {
-    const trimmed = query.trim().toLowerCase();
-    if (trimmed.length > 0) {
-      const filtered = searchIndex.filter(
-        (item) =>
-          item.title.toLowerCase().includes(trimmed) ||
-          item.category.toLowerCase().includes(trimmed)
-      );
-      setResults(filtered);
-      setIsOpen(true);
-    } else {
+    const trimmed = query.trim();
+    if (!trimmed) {
       setResults([]);
       setIsOpen(false);
+      return;
     }
+
+    const timer = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.results)) {
+            setResults(data.results);
+            setIsOpen(true);
+          }
+        })
+        .catch(() => {
+          setResults([]);
+        });
+    }, 150);
+
+    return () => clearTimeout(timer);
   }, [query]);
 
   // Close dropdown when clicking outside

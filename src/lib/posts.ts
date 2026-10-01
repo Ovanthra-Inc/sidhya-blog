@@ -59,12 +59,13 @@ export function getAllPosts(includeDrafts = false): Post[] {
         const relativePath = path.relative(postsDirectory, filePath);
         const folderPath = path.dirname(relativePath);
 
-        let formattedDate = "2026-08-09";
+        const today = new Date().toISOString().split("T")[0];
+        let formattedDate = today;
         if (data.date) {
           try {
             formattedDate = new Date(data.date).toISOString().split("T")[0];
           } catch {
-            formattedDate = "2026-08-09";
+            formattedDate = today;
           }
         }
 
