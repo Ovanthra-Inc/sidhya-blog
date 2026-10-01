@@ -17,6 +17,7 @@ async function getMermaid() {
     const m = mod.default;
     m.initialize({
       startOnLoad: false,
+      suppressErrorRendering: true,
       theme: "neutral",
       themeVariables: {
         primaryColor: "#6366f1",
@@ -37,6 +38,10 @@ async function getMermaid() {
       sequence: { useMaxWidth: true },
       er: { useMaxWidth: true },
     });
+    // Override parseError on the instance so Mermaid never injects error divs into document.body
+    m.parseError = (err, _hash) => {
+      console.warn("[Mermaid parsing suppressed]:", err);
+    };
     // Only assign after initialize succeeds — if import() throws (stale
     // HMR chunk), globalThis stays undefined and we retry next render.
     globalThis.__mermaidInstance = m;
@@ -90,6 +95,18 @@ export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Diagram render error");
+
+          // Clean up any stray error elements Mermaid injects directly into document.body
+          if (typeof document !== "undefined") {
+            const strayErrors = document.querySelectorAll(
+              "[id^='dmermaid'], [id^='mermaid-'], .error-icon"
+            );
+            strayErrors.forEach((el) => {
+              if (el.parentElement === document.body) {
+                el.remove();
+              }
+            });
+          }
         }
       }
     }
