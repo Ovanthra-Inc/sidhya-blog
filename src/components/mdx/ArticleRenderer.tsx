@@ -78,6 +78,7 @@ function inlineRender(text: string): React.ReactNode {
           className="text-blue-600 font-semibold underline underline-offset-2 hover:text-blue-800 transition-colors cursor-pointer"
           target={isExternal ? "_blank" : undefined}
           rel={isExternal ? "noopener noreferrer" : undefined}
+          data-outbound={isExternal ? "true" : undefined}
         >
           {inlineRender(linkText)}
         </a>

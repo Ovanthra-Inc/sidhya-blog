@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "publish:auto": "node --env-file=.env.local scripts/auto-publish.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
+    "@tavily/core": "^0.7.13",
     "@vercel/analytics": "^2.0.1",
     "gray-matter": "^4.0.3",
     "mermaid": "^11.16.1",

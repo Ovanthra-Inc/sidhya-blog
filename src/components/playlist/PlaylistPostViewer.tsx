@@ -7,6 +7,8 @@ import ArticleRenderer from "@/components/mdx/ArticleRenderer";
 import BackButton from "@/components/ui/BackButton";
 import PostCard from "@/components/ui/PostCard";
 import SharePostButton from "@/components/ui/SharePostButton";
+import LikeButton from "@/components/ui/LikeButton";
+import AdSlot from "@/components/ads/AdSlot";
 import { Post } from "@/lib/posts";
 import { PlaylistContext } from "@/lib/playlists";
 
@@ -105,7 +107,10 @@ export default function PlaylistPostViewer({
           <span>•</span>
           <span>{currentPost.readTime}</span>
         </div>
-        <SharePostButton post={currentPost} />
+        <div className="flex items-center gap-2">
+          <LikeButton slug={currentPost.slug} title={currentPost.title} variant="compact" />
+          <SharePostButton post={currentPost} />
+        </div>
       </div>
 
       {/* Cover Image - Taller height (h-[420px] md:h-[640px]) and sharp square corners (rounded-none) */}
@@ -128,6 +133,12 @@ export default function PlaylistPostViewer({
         <div className="lg:col-span-8 flex flex-col">
           {/* Render MDX Content */}
           <ArticleRenderer content={currentPost.content} />
+
+          {/* Article Bottom Engagement: Like Callout */}
+          <LikeButton slug={currentPost.slug} title={currentPost.title} variant="banner" />
+
+          {/* Developer Ad & Sponsor Slot */}
+          <AdSlot position="article-bottom" />
 
           {/* Bottom Playlist Stepper Card */}
           <div className="my-8 p-5 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-100 rounded-none flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">

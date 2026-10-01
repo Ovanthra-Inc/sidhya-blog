@@ -6,6 +6,8 @@ import ArticleRenderer from "@/components/mdx/ArticleRenderer";
 import SafeImage from "@/components/ui/SafeImage";
 import PlaylistPostViewer from "@/components/playlist/PlaylistPostViewer";
 import SharePostButton from "@/components/ui/SharePostButton";
+import LikeButton from "@/components/ui/LikeButton";
+import AdSlot from "@/components/ads/AdSlot";
 import { BlogPostingJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { getPostBySlug, getAllPosts, Post } from "@/lib/posts";
 import { getPostPlaylistContext } from "@/lib/playlists";
@@ -156,7 +158,10 @@ export default async function PostPage({ params }: PostPageProps) {
                 <span>•</span>
                 <span>{post.readTime}</span>
               </div>
-              <SharePostButton post={post} />
+              <div className="flex items-center gap-2">
+                <LikeButton slug={post.slug} title={post.title} variant="compact" />
+                <SharePostButton post={post} />
+              </div>
             </div>
 
             <div className="relative w-full h-[350px] md:h-[520px] rounded-2xl overflow-hidden mb-12 bg-gray-100 shadow-xs">
@@ -175,6 +180,12 @@ export default async function PostPage({ params }: PostPageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
               <div className="lg:col-span-8 flex flex-col">
                 <ArticleRenderer content={post.content} />
+
+                {/* Article Bottom Engagement: Like Callout */}
+                <LikeButton slug={post.slug} title={post.title} variant="banner" />
+
+                {/* Developer Ad & Sponsor Slot */}
+                <AdSlot position="article-bottom" />
 
                 {post.tags && post.tags.length > 0 && (
                   <div className="flex items-center gap-2 mt-8 pt-6 border-t border-gray-100 flex-wrap">

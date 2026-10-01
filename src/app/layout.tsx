@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import Navbar from "@/app/components/Navbar";
 import { WebSiteJsonLd } from "@/components/seo/JsonLd";
+import OutboundLinkTracker from "@/components/analytics/OutboundLinkTracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -93,6 +94,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
+  const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "";
 
   return (
     <html
@@ -112,6 +114,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Vercel Web Analytics */}
         <Analytics />
 
+        {/* Global Outbound & Affiliate Link Click Tracker */}
+        <OutboundLinkTracker />
+
         {/* Google Analytics 4 via Native Next.js Script */}
         {gaId && gaId !== "G-XXXXXXXXXX" && (
           <>
@@ -128,6 +133,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               `}
             </Script>
           </>
+        )}
+
+        {/* Google AdSense Script (Loads only if NEXT_PUBLIC_ADSENSE_CLIENT_ID is provided) */}
+        {adsenseClientId && (
+          <Script
+            id="google-adsense"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            crossOrigin="anonymous"
+            strategy="lazyOnload"
+          />
         )}
       </body>
     </html>
