@@ -9,6 +9,7 @@ const AZURE_ENDPOINT =
   process.env.AZURE_OPENAI_ENDPOINT ||
   "https://invest-resource.services.ai.azure.com/openai/v1";
 const MODEL_NAME = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini";
+const IMAGE_MODEL = process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || "gpt-image-1-mini";
 const TAVILY_KEY = process.env.TAVILY_API_KEY;
 
 const R2_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || "51bed705f4270b9ae2c0a3b1b64a0657";
@@ -148,8 +149,71 @@ function generateEditorialCoverSvg(title, category) {
 </svg>`;
 }
 
+async function generateAICoverImage(title, category) {
+  try {
+    console.log(`[Azure AI Image] Generating 1536x1024 editorial image with ${IMAGE_MODEL}...`);
+
+    const visualPrompt = `Professional, clean, minimalist modern technology editorial illustration representing the engineering concept: "${title}".
+Abstract 3D architectural systems, nodes, pipelines, and layered data structures.
+Soft neutral background, predominantly light gray and white with subtle cool blue accents.
+Soft studio lighting, realistic materials, subtle depth, shadows, and ambient occlusion.
+Wide landscape composition.
+NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS UNDER ANY CIRCUMSTANCES.`;
+
+    const endpoint = `https://invest-resource.openai.azure.com/openai/deployments/${IMAGE_MODEL}/images/generations?api-version=2024-02-01`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": AZURE_KEY,
+      },
+      body: JSON.stringify({
+        prompt: visualPrompt,
+        n: 1,
+        size: "1536x1024",
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`[Azure Image Warning]: ${errText}. Falling back to SVG vector engine.`);
+      return null;
+    }
+
+    const data = await res.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) return null;
+
+    return Buffer.from(b64, "base64");
+  } catch (err) {
+    console.warn(`[Azure Image Error]: ${err.message}. Falling back to SVG vector engine.`);
+    return null;
+  }
+}
+
 async function uploadCoverToR2(slug, title, category) {
   try {
+    // 1. Try Azure AI image generation first (gpt-image-1-mini)
+    const pngBuffer = await generateAICoverImage(title, category);
+
+    if (pngBuffer) {
+      const key = `posts/${slug}.png`;
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: pngBuffer,
+          ContentType: "image/png",
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
+      const publicUrl = `${R2_PUBLIC_URL.replace(/\/$/, "")}/${key}`;
+      console.log(`[R2] AI-generated PNG cover successfully uploaded: ${publicUrl}`);
+      return publicUrl;
+    }
+
+    // 2. Fallback to SVG engine if needed
     const svgContent = generateEditorialCoverSvg(title, category);
     const key = `posts/${slug}.svg`;
 
@@ -164,7 +228,7 @@ async function uploadCoverToR2(slug, title, category) {
     );
 
     const publicUrl = `${R2_PUBLIC_URL.replace(/\/$/, "")}/${key}`;
-    console.log(`[R2] Cover image successfully uploaded: ${publicUrl}`);
+    console.log(`[R2] Vector SVG cover uploaded: ${publicUrl}`);
     return publicUrl;
   } catch (err) {
     console.warn(`[R2 Upload Failed]: ${err.message}. Using fallback gradient.`);
