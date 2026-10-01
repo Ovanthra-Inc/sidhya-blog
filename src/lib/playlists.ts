@@ -39,75 +39,81 @@ export function getAllPlaylists(): Playlist[] {
   return filenames
     .filter((file) => file.endsWith(".mdx") || file.endsWith(".md"))
     .map((filename) => {
-      const filePath = path.join(playlistsDirectory, filename);
-      const fileContents = fs.readFileSync(filePath, "utf8");
-      const { data, content } = matter(fileContents);
+      try {
+        const filePath = path.join(playlistsDirectory, filename);
+        const fileContents = fs.readFileSync(filePath, "utf8");
+        const { data, content } = matter(fileContents);
 
-      let totalCounter = 0;
-      const resolvedModules: PlaylistModule[] = [];
-      const flatPosts: (Post & { index: number; formattedIndex: string })[] = [];
-      const allSlugs: string[] = [];
+        let totalCounter = 0;
+        const resolvedModules: PlaylistModule[] = [];
+        const flatPosts: (Post & { index: number; formattedIndex: string })[] = [];
+        const allSlugs: string[] = [];
 
-      // Check if frontmatter has structured modules
-      if (Array.isArray(data.modules)) {
-        for (const mod of data.modules) {
-          const modTitle = mod.title || "Topic Module";
-          const modSlugs: string[] = Array.isArray(mod.posts) ? mod.posts : [];
-          const modPosts: (Post & { index: number; formattedIndex: string })[] = [];
+        // Check if frontmatter has structured modules
+        if (Array.isArray(data.modules)) {
+          for (const mod of data.modules) {
+            const modTitle = mod.title || "Topic Module";
+            const modSlugs: string[] = Array.isArray(mod.posts) ? mod.posts : [];
+            const modPosts: (Post & { index: number; formattedIndex: string })[] = [];
 
-          for (const slug of modSlugs) {
-            const found = allPosts.find((p) => p.slug === slug);
-            if (found) {
-              totalCounter++;
-              const formatted = {
-                ...found,
-                index: totalCounter,
-                formattedIndex: totalCounter.toString().padStart(2, "0"),
-              };
-              modPosts.push(formatted);
-              flatPosts.push(formatted);
-              allSlugs.push(slug);
+            for (const slug of modSlugs) {
+              const found = allPosts.find((p) => p.slug === slug);
+              if (found) {
+                totalCounter++;
+                const formatted = {
+                  ...found,
+                  index: totalCounter,
+                  formattedIndex: totalCounter.toString().padStart(2, "0"),
+                };
+                modPosts.push(formatted);
+                flatPosts.push(formatted);
+                allSlugs.push(slug);
+              }
+            }
+
+            if (modPosts.length > 0) {
+              resolvedModules.push({ title: modTitle, posts: modPosts });
             }
           }
+        } else {
+          // Fallback flat posts list
+          const postSlugs: string[] = Array.isArray(data.posts) ? data.posts : [];
+          const fallbackPosts = postSlugs
+            .map((slug, idx) => {
+              const found = allPosts.find((p) => p.slug === slug);
+              if (!found) return null;
+              return {
+                ...found,
+                index: idx + 1,
+                formattedIndex: (idx + 1).toString().padStart(2, "0"),
+              };
+            })
+            .filter(Boolean) as (Post & { index: number; formattedIndex: string })[];
 
-          if (modPosts.length > 0) {
-            resolvedModules.push({ title: modTitle, posts: modPosts });
+          flatPosts.push(...fallbackPosts);
+          allSlugs.push(...postSlugs);
+          if (fallbackPosts.length > 0) {
+            resolvedModules.push({ title: "Series Lessons", posts: fallbackPosts });
           }
         }
-      } else {
-        // Fallback flat posts list
-        const postSlugs: string[] = Array.isArray(data.posts) ? data.posts : [];
-        const fallbackPosts = postSlugs
-          .map((slug, idx) => {
-            const found = allPosts.find((p) => p.slug === slug);
-            if (!found) return null;
-            return {
-              ...found,
-              index: idx + 1,
-              formattedIndex: (idx + 1).toString().padStart(2, "0"),
-            };
-          })
-          .filter(Boolean) as (Post & { index: number; formattedIndex: string })[];
 
-        flatPosts.push(...fallbackPosts);
-        allSlugs.push(...postSlugs);
-        if (fallbackPosts.length > 0) {
-          resolvedModules.push({ title: "Series Lessons", posts: fallbackPosts });
-        }
+        return {
+          title: data.title || "Untitled Playlist",
+          description: data.description || "",
+          slug: data.slug || filename.replace(/\.mdx?$/, ""),
+          cover: data.cover || "/hero.png",
+          category: data.category || "General",
+          postSlugs: allSlugs,
+          modules: resolvedModules,
+          posts: flatPosts,
+          content,
+        };
+      } catch (err) {
+        console.error(`[playlists] Error parsing playlist file ${filename}:`, err);
+        return null;
       }
-
-      return {
-        title: data.title || "Untitled Playlist",
-        description: data.description || "",
-        slug: data.slug || filename.replace(/\.mdx?$/, ""),
-        cover: data.cover || "/hero.png",
-        category: data.category || "General",
-        postSlugs: allSlugs,
-        modules: resolvedModules,
-        posts: flatPosts,
-        content,
-      };
-    });
+    })
+    .filter((p): p is Playlist => p !== null);
 }
 
 export function getPlaylistBySlug(slug: string): Playlist | null {

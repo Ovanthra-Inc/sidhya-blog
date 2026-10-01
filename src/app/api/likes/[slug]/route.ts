@@ -3,7 +3,6 @@ import { sql, ensureTablesExist } from "@/lib/db";
 
 // Fallback in-memory store if no external database is connected
 const inMemoryLikes = new Map<string, number>();
-let tablesInitialized = false;
 
 // Check for Upstash or Vercel KV REST API environment variables
 const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -49,10 +48,7 @@ export async function GET(
   // 1. Neon Serverless Postgres (Primary Production Store)
   if (sql) {
     try {
-      if (!tablesInitialized) {
-        await ensureTablesExist();
-        tablesInitialized = true;
-      }
+      await ensureTablesExist();
       const rows = await sql`
         SELECT likes FROM post_likes WHERE slug = ${decodedSlug} LIMIT 1;
       `;
@@ -60,6 +56,7 @@ export async function GET(
       return NextResponse.json({ likes: count, source: "neon" });
     } catch (err) {
       console.error("[Neon GET Likes Error]:", err);
+      // Fall through to next store on DB error
     }
   }
 
@@ -85,10 +82,7 @@ export async function POST(
   // 1. Neon Serverless Postgres (Atomic Upsert)
   if (sql) {
     try {
-      if (!tablesInitialized) {
-        await ensureTablesExist();
-        tablesInitialized = true;
-      }
+      await ensureTablesExist();
       const rows = await sql`
         INSERT INTO post_likes (slug, likes, updated_at)
         VALUES (${decodedSlug}, 1, CURRENT_TIMESTAMP)
@@ -98,10 +92,14 @@ export async function POST(
           updated_at = CURRENT_TIMESTAMP
         RETURNING likes;
       `;
+      if (!rows || rows.length === 0) {
+        throw new Error("No rows returned from upsert");
+      }
       const count = Number(rows[0].likes);
       return NextResponse.json({ likes: count, success: true, source: "neon" });
     } catch (err) {
       console.error("[Neon POST Likes Error]:", err);
+      // Fall through to next store on DB error
     }
   }
 
