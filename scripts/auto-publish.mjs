@@ -8,6 +8,9 @@ const AZURE_KEY = process.env.AZURE_OPENAI_API_KEY;
 const AZURE_ENDPOINT =
   process.env.AZURE_OPENAI_ENDPOINT ||
   "https://invest-resource.services.ai.azure.com/openai/v1";
+const AZURE_RESOURCE_ENDPOINT =
+  process.env.AZURE_OPENAI_RESOURCE_ENDPOINT ||
+  "https://invest-resource.openai.azure.com/openai/v1";
 const MODEL_NAME = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-5-mini";
 const IMAGE_MODEL = process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || "gpt-image-1-mini";
 const TAVILY_KEY = process.env.TAVILY_API_KEY;
@@ -160,7 +163,8 @@ Soft studio lighting, realistic materials, subtle depth, shadows, and ambient oc
 Wide landscape composition.
 NO TEXT, NO LETTERS, NO WORDS, NO NUMBERS, NO LOGOS, NO WATERMARKS UNDER ANY CIRCUMSTANCES.`;
 
-    const endpoint = `https://invest-resource.openai.azure.com/openai/deployments/${IMAGE_MODEL}/images/generations?api-version=2024-02-01`;
+    const resourceBase = AZURE_RESOURCE_ENDPOINT.replace(/\/openai\/v1\/?$/, "");
+    const endpoint = `${resourceBase}/openai/deployments/${IMAGE_MODEL}/images/generations?api-version=2024-02-01`;
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -239,9 +243,20 @@ async function uploadCoverToR2(slug, title, category) {
 // ── Main Generation Pipeline ──────────────────────────────────────────────────
 async function run() {
   console.log("=== SIDHYA Blog: Autonomous Content Engine ===");
+  console.log("[Pre-flight Check] Verifying configuration status:");
+  console.log(` - AZURE_OPENAI_API_KEY: ${AZURE_KEY ? "CONFIGURED" : "MISSING"}`);
+  console.log(` - AZURE_OPENAI_ENDPOINT: ${AZURE_ENDPOINT}`);
+  console.log(` - AZURE_OPENAI_RESOURCE_ENDPOINT: ${AZURE_RESOURCE_ENDPOINT}`);
+  console.log(` - AZURE_OPENAI_DEPLOYMENT_NAME: ${MODEL_NAME}`);
+  console.log(` - AZURE_OPENAI_IMAGE_DEPLOYMENT: ${IMAGE_MODEL}`);
+  console.log(` - TAVILY_API_KEY: ${TAVILY_KEY ? "CONFIGURED" : "MISSING"}`);
+  console.log(` - CLOUDFLARE_R2_ACCESS_KEY: ${R2_ACCESS_KEY ? "CONFIGURED" : "MISSING"}`);
+  console.log(` - CLOUDFLARE_R2_SECRET_KEY: ${R2_SECRET_KEY ? "CONFIGURED" : "MISSING"}`);
+  console.log(` - CLOUDFLARE_R2_PUBLIC_URL: ${R2_PUBLIC_URL}`);
+  console.log(` - DATABASE_URL: ${process.env.DATABASE_URL ? "CONFIGURED" : "NOT SET (OPTIONAL)"}`);
 
-  if (!AZURE_KEY) throw new Error("Missing AZURE_OPENAI_API_KEY");
-  if (!TAVILY_KEY) throw new Error("Missing TAVILY_API_KEY");
+  if (!AZURE_KEY) throw new Error("Missing AZURE_OPENAI_API_KEY secret");
+  if (!TAVILY_KEY) throw new Error("Missing TAVILY_API_KEY secret");
 
   const existingSlugs = getExistingSlugs();
   console.log(`[Scanner] Loaded ${existingSlugs.size} existing post slugs for deduplication.`);

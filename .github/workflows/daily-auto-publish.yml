@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
 
       - name: Install Dependencies
@@ -34,6 +34,7 @@ jobs:
         env:
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_RESOURCE_ENDPOINT: ${{ secrets.AZURE_OPENAI_RESOURCE_ENDPOINT }}
           AZURE_OPENAI_DEPLOYMENT_NAME: ${{ secrets.AZURE_OPENAI_DEPLOYMENT_NAME }}
           AZURE_OPENAI_IMAGE_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_IMAGE_DEPLOYMENT || 'gpt-image-1-mini' }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
