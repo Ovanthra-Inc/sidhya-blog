@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { track } from "@vercel/analytics";
 
@@ -9,6 +9,12 @@ interface LikeButtonProps {
   title: string;
   variant?: "compact" | "banner";
   className?: string;
+}
+
+interface LikeSyncDetail {
+  slug: string;
+  likes: number;
+  hasLiked: boolean;
 }
 
 export default function LikeButton({
@@ -22,84 +28,158 @@ export default function LikeButton({
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Check localStorage and fetch like count on mount
+  // Sync state across multiple LikeButton instances on the same page
+  const broadcastSync = useCallback(
+    (count: number, liked: boolean) => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent<LikeSyncDetail>("sidhya_like_sync", {
+            detail: { slug, likes: count, hasLiked: liked },
+          })
+        );
+      }
+    },
+    [slug]
+  );
+
+  // Initialize and fetch count whenever slug changes
   useEffect(() => {
+    // 1. Reset and check localStorage for this specific slug
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(`sidhya_liked_${slug}`);
-      if (stored === "true") {
-        setHasLiked(true);
-      }
+      setHasLiked(stored === "true");
+    } else {
+      setHasLiked(false);
     }
 
-    // Fetch initial count from API
-    fetch(`/api/likes/${encodeURIComponent(slug)}`)
+    setLikes(null);
+
+    // 2. Fetch fresh like count from server with cache busting
+    let isCancelled = false;
+    fetch(`/api/likes/${encodeURIComponent(slug)}?t=${Date.now()}`, {
+      cache: "no-store",
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.likes === "number") {
+        if (!isCancelled && data && typeof data.likes === "number") {
           setLikes(data.likes);
         }
       })
       .catch(() => {
-        // Fallback gracefully without fake counts
-        setLikes(0);
+        if (!isCancelled) {
+          setLikes(0);
+        }
       });
+
+    // 3. Listen to in-page sync events (e.g. compact <-> banner button sync)
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<LikeSyncDetail>;
+      if (customEvent.detail && customEvent.detail.slug === slug) {
+        if (typeof customEvent.detail.likes === "number") {
+          setLikes(customEvent.detail.likes);
+        }
+        if (typeof customEvent.detail.hasLiked === "boolean") {
+          setHasLiked(customEvent.detail.hasLiked);
+        }
+      }
+    };
+
+    // 4. Listen to cross-tab storage changes
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `sidhya_liked_${slug}`) {
+        const nextLiked = e.newValue === "true";
+        setHasLiked(nextLiked);
+      }
+    };
+
+    window.addEventListener("sidhya_like_sync", handleSync as EventListener);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("sidhya_like_sync", handleSync as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [slug]);
 
   const handleLike = async () => {
     if (isLoading) return;
 
-    // Trigger playful pop animation
+    // Trigger pop animation
     setIsAnimating(true);
     setTimeout(() => setIsAnimating(false), 600);
 
     const prevLiked = hasLiked;
     const nextLiked = !prevLiked;
+    const prevCount = likes !== null ? likes : 0;
+    const optimisticCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
 
-    // Optimistic UI update
+    // 1. Optimistic UI update locally
     setHasLiked(nextLiked);
-    setLikes((prev) => (prev !== null ? prev + (nextLiked ? 1 : -1) : 1));
+    setLikes(optimisticCount);
 
     if (typeof window !== "undefined") {
       localStorage.setItem(`sidhya_liked_${slug}`, nextLiked ? "true" : "false");
     }
 
-    // Only fire tracking events when liking (not unliking)
+    // 2. Broadcast immediately so other button on page updates in lockstep
+    broadcastSync(optimisticCount, nextLiked);
+
+    // 3. Analytics tracking (only when liking)
     if (nextLiked) {
       try {
-        track("like_article", {
-          slug,
-          title,
-        });
+        track("like_article", { slug, title });
       } catch {
-        // Analytics error ignored in local dev
+        // Analytics error ignored
       }
 
-      // Google Analytics 4 event
-      if (typeof window !== "undefined" && (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag) {
+      if (
+        typeof window !== "undefined" &&
+        (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag
+      ) {
         (window as unknown as { gtag: (...args: unknown[]) => void }).gtag("event", "like_article", {
           event_category: "engagement",
           event_label: slug,
           article_title: title,
         });
       }
+    }
 
-      // Persist to API
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/likes/${encodeURIComponent(slug)}`, {
-          method: "POST",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (typeof data.likes === "number") {
-            setLikes(data.likes);
-          }
+    // 4. Persist to API (supports both like and unlike actions)
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/likes/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: nextLiked ? "like" : "unlike" }),
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.likes === "number") {
+          setLikes(data.likes);
+          broadcastSync(data.likes, nextLiked);
         }
-      } catch {
-        // Handled silently
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Rollback on server error
+        setHasLiked(prevLiked);
+        setLikes(prevCount);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`sidhya_liked_${slug}`, prevLiked ? "true" : "false");
+        }
+        broadcastSync(prevCount, prevLiked);
       }
+    } catch {
+      // Rollback on network failure
+      setHasLiked(prevLiked);
+      setLikes(prevCount);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`sidhya_liked_${slug}`, prevLiked ? "true" : "false");
+      }
+      broadcastSync(prevCount, prevLiked);
+    } finally {
+      setIsLoading(false);
     }
   };
 
