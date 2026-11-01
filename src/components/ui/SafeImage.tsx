@@ -108,6 +108,8 @@ export default function SafeImage({
     );
   }
 
+  const isSvg = typeof src === "string" && src.toLowerCase().includes(".svg");
+
   return (
     <div className={`relative ${fill ? "w-full h-full" : ""} ${className}`}>
       <Image
@@ -119,6 +121,7 @@ export default function SafeImage({
         priority={priority}
         loading={priority ? "eager" : props.loading}
         sizes={sizes}
+        unoptimized={isSvg || props.unoptimized}
         onError={() => setError(true)}
         {...props}
       />
